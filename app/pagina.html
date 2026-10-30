@@ -19,7 +19,7 @@ a{color:#1b5e9e}
 </style></head><body>
 <h1>Radiómica · app local</h1>
 
-<section class="aviso"><b>Solo en el PC del hospital. Nada sale de este ordenador.</b></section>
+<section class="aviso"><b id="aviso">Solo en el PC del hospital. Nada sale de este ordenador.</b></section>
 
 <section><h2>Inicio</h2>
 <div>Datos: <code id="datos">…</code></div>
@@ -60,6 +60,7 @@ function msg(el,r){el.className=r.ok?'ok':'mal';el.textContent=r.d.mensaje||r.d.
 function span(txt,clase){const s=document.createElement('span');s.textContent=txt;if(clase)s.className=clase;return s;}
 async function estado(){
   const {d}=await api('/api/estado');
+  if(d.movil)$('aviso').textContent='Modo móvil: abierta a la red interna del hospital. Cierra la app al terminar y no la uses en redes ajenas.';
   $('datos').textContent=d.datos;$('resultados').textContent=d.resultados;
   $('pyr').textContent=d.pyradiomics?'disponible':'NO disponible (activa el entorno)';
   $('pyr').className=d.pyradiomics?'ok':'mal';

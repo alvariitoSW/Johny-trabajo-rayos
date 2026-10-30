@@ -34,11 +34,25 @@ escribir órdenes.
 4. Repite con cada paciente; en **Casos**, decide los que tengan alerta; en **Ejecutar**, lanza el pipeline.
 5. La tabla que une cada código con su paciente la guardas tú, en el hospital, fuera de esta carpeta.
 
-## Usarla desde el móvil: con el acceso remoto del hospital
-La app escucha solo en `127.0.0.1` (el propio ordenador): así nadie de la red puede entrar y los datos de pacientes no
-salen del PC. Para usarla desde el móvil (decisión del usuario del 30/10/2026), entra en este PC con el **acceso
-remoto que dé Informática** (VPN o escritorio remoto) y abre la app ahí, como si estuvieras delante: la página se
-adapta a la pantalla. Borrador de la petición a Informática: `docs/solicitud-acceso-remoto.md`.
+## Usarla desde el móvil
 
-No abras la app a la red ni a internet (túneles, redirección de puertos, servicios en la nube): sacaría datos de
-pacientes de los equipos autorizados (protocolo §13).
+**Modo móvil** (decisión del usuario del 30/10/2026, con permiso de Informática): doble clic en
+`lanzar_app_movil.bat`. La ventana negra muestra una dirección del tipo `http://192.168.x.x:8765/?t=…` y la clave.
+1. Conecta el móvil a la **wifi interna** del hospital (no la de invitados) o a la **VPN** del hospital.
+2. Abre esa dirección en el navegador del móvil. La página se adapta a la pantalla.
+3. Al terminar, cierra la app (`Ctrl+C`): la dirección deja de funcionar y la próxima vez la clave será otra.
+
+Qué protege el modo móvil:
+- Solo se abre a la **red interna**: si la dirección fuese de internet, la app no arranca. Nunca uses túneles,
+  redirección de puertos ni servicios en la nube.
+- Clave nueva en cada arranque; sin ella, «Acceso denegado».
+- `--permitir IP-de-tu-móvil` (añádelo al final de la línea del `.bat`): solo entra ese aparato.
+- `--certificado cert.pem --clave clave.pem`: conexión cifrada (`https`) con el certificado que te dé Informática.
+  **Sin certificado, la conexión no va cifrada dentro de la red**: pídelo.
+
+Si tu móvil es personal, confirma con el delegado de protección de datos que puedes ver ahí datos codificados de
+pacientes (protocolo §13). Si la wifi no llega al PC (cortafuegos), Informática tiene que abrir el puerto 8765 para
+ese equipo.
+
+Sin modo móvil, la app solo responde en el propio PC (`127.0.0.1`). Otra opción es entrar en el PC con un
+escritorio remoto (borrador de la petición: `docs/solicitud-acceso-remoto.md`).

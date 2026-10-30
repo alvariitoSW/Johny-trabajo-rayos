@@ -34,9 +34,8 @@ Definiciones, IBSI y diferencias: `docs/diccionario_variables.md`.
 Una página para preparar los casos y anotar decisiones sin tocar archivos: `app/LEEME.md`. En Windows se abre con
 `lanzar_app.bat`. Corre solo en el PC del hospital. Paso a paso para meter tus pacientes: `app/LEEME.md`.
 
-**Desde el móvil**: con el acceso remoto del hospital (VPN o escritorio remoto) entras en ese PC y usas la app ahí.
-Borrador de la petición a Informática: `docs/solicitud-acceso-remoto.md`. Para ver cómo es sin datos reales:
-demo con casos sintéticos (enlace en `autonomo/BITACORA.md`).
+**Desde el móvil**: `lanzar_app_movil.bat` abre la app a la red interna del hospital (wifi interna o VPN, nunca
+internet); en el móvil abres la dirección que muestra. Detalles, protecciones y permisos: `app/LEEME.md`.
 
 ## Antes de segmentar
 

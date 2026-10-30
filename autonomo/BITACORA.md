@@ -126,6 +126,10 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 
 ## 6. Hecho esta semana
 
+- 2026-10-30 · **Modo móvil de la app** (decisión del usuario, con permiso de Informática): `lanzar_app_movil.bat`
+  abre la app a la red interna (wifi interna o VPN; nunca internet), clave corta por arranque, `--permitir` y cifrado
+  opcional con certificado de Informática. **Pendiente**: pedir el certificado y confirmar con el delegado de
+  protección de datos el uso en un móvil personal.
 - 2026-10-30 · **Consejo aplicado** (B-008 a B-014): ley de explicar en llano (REGLAS §4.4) y guía
   `docs/guia_interpretacion.md` (página para el móvil: https://claude.ai/artifact/R39N6BzDFiV1Ps6Asfmt69); lectura
   automática en el PDF; etiqueta de fiabilidad del ICC (Koo y Li) y aviso < 15; sorteo con semilla; guía del borde

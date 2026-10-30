@@ -246,3 +246,63 @@ def test_lanzar_pipeline_desde_la_app(tmp_path):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+# ------------------------------------------------------------------------------------------------- modo móvil
+def test_modo_movil_solo_red_interna():
+    assert servidor.comprobar_ip_interna('192.168.1.20') == '192.168.1.20'
+    assert servidor.comprobar_ip_interna('10.4.5.6') == '10.4.5.6'
+    for mala in ['8.8.8.8', '127.0.0.1', '0.0.0.0']:
+        with pytest.raises(ValueError):
+            servidor.comprobar_ip_interna(mala)
+
+
+def test_modo_movil_permitidos():
+    assert servidor.cliente_permitido('127.0.0.1', {'192.168.1.50'})        # el propio PC, siempre
+    assert servidor.cliente_permitido('192.168.1.50', {'192.168.1.50'})
+    assert not servidor.cliente_permitido('192.168.1.51', {'192.168.1.50'})
+    assert servidor.cliente_permitido('192.168.1.51', set())                # sin lista: la red interna
+
+
+def test_modo_movil_host_y_clave_corta(app):
+    srv, _, _ = app
+    puerto = srv.estado.puerto
+    assert pedir(srv, 'GET', '/api/estado', host=f'192.168.1.20:{puerto}')[0] == 403   # sin modo móvil
+    srv.estado.red = '192.168.1.20'
+    estado = pedir(srv, 'GET', '/api/estado', host=f'192.168.1.20:{puerto}')
+    assert estado[0] == 200 and json.loads(estado[2])['movil'] is True
+    assert pedir(srv, 'GET', '/api/estado', host=f'192.168.1.21:{puerto}')[0] == 403   # otra IP en el Host
+    srv.estado.permitidos = {'192.168.1.50'}                                           # este PC sigue entrando
+    assert pedir(srv, 'GET', '/api/estado', host=f'192.168.1.20:{puerto}')[0] == 200
+    corta = servidor.Estado(Path('.'), Path('.'), Path('x'), red='192.168.1.20')
+    assert 14 <= len(corta.token) <= 18 and pedir(srv, 'GET', '/api/estado', token=False)[0] == 403
+
+
+def test_modo_movil_no_arranca_con_ip_publica(tmp_path):
+    with pytest.raises(ValueError):
+        servidor.crear_servidor(tmp_path, tmp_path, 0, red='8.8.8.8')
+
+
+def test_modo_movil_cifrado_con_certificado(tmp_path):
+    import shutil
+    import ssl
+    import subprocess
+    if not shutil.which('openssl'):
+        pytest.skip('sin openssl para crear un certificado de prueba')
+    cert, clave = tmp_path / 'cert.pem', tmp_path / 'clave.pem'
+    subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=127.0.0.1',
+                    '-keyout', str(clave), '-out', str(cert)], check=True, capture_output=True)
+    srv = servidor.crear_servidor(tmp_path / 'd', tmp_path / 'r', 0, certificado=cert, clave=clave)
+    hilo = threading.Thread(target=srv.serve_forever, daemon=True)
+    hilo.start()
+    try:
+        contexto = ssl.create_default_context(cafile=str(cert))
+        contexto.check_hostname = False
+        c = http.client.HTTPSConnection('127.0.0.1', srv.estado.puerto, timeout=20, context=contexto)
+        c.request('GET', '/api/estado', headers={'X-Token': srv.estado.token})
+        r = c.getresponse()
+        assert r.status == 200 and json.loads(r.read())['movil'] is False
+        c.close()
+    finally:
+        srv.shutdown()
+        srv.server_close()

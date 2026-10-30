@@ -67,3 +67,12 @@ una segunda tanda que tocó los archivos compartidos.
   móvil** (paso 7; recuentos 1-4 como «< 5»). Riesgo anotado: por diferencia entre recuentos se pueden deducir
   números pequeños; lo valora el delegado de protección de datos.
 - Pruebas: 67.
+
+## 30/10/2026 · Modo móvil de la app
+
+El usuario pidió usar la app en el navegador del móvil, no solo en el PC (Informática le dio permiso, sin herramienta
+concreta). Se añadió `--movil`: escucha en la IP de red interna del PC (solo direcciones privadas; una pública,
+0.0.0.0 o 127.x no arrancan), clave de 16 caracteres por arranque, `--permitir` para limitar a ciertos aparatos y TLS
+opcional con certificado de Informática. Sin certificado la conexión no va cifrada dentro de la red: queda como aviso
+en pantalla y en `app/LEEME.md`. No se abre nunca a internet (túneles o puertos): sacaría datos de pacientes de los
+equipos autorizados (protocolo §13). 72 pruebas.

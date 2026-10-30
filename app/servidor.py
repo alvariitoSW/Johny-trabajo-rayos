@@ -4,13 +4,21 @@ Uso (desde la carpeta del proyecto):
 
     python app/servidor.py --datos data --resultados outputs [--puerto 8765] [--abrir]
 
-Solo biblioteca estándar. Escucha únicamente en 127.0.0.1. Cada arranque crea un token aleatorio que va en la
-URL impresa; sin él, 403. No recibe archivos por el navegador: el usuario escribe la ruta de una carpeta local y el
+Solo biblioteca estándar. Por defecto escucha únicamente en 127.0.0.1. Cada arranque crea un token aleatorio que va
+en la URL impresa; sin él, 403.
+
+Modo móvil (decisión del usuario del 30/10/2026, con permiso de Informática): `--movil` abre la app a la RED INTERNA
+del hospital (la dirección del PC en esa red, nunca internet) para usarla desde el navegador del móvil conectado a la
+wifi interna o a la VPN del hospital. Opcional: `--permitir IP` (solo esos aparatos) y `--certificado/--clave`
+(conexión cifrada con el certificado que dé Informática). No recibe archivos por el navegador: el usuario escribe la ruta de una carpeta local y el
 servidor copia. No borra nada del usuario. No escribe registro de peticiones.
 """
 from __future__ import annotations
 
 import argparse
+import ipaddress
+import socket
+import ssl
 import csv
 import json
 import os
@@ -43,9 +51,13 @@ class ErrorUsuario(Exception):
 
 
 class Estado:
-    def __init__(self, datos: Path, resultados: Path, pipeline: Path):
+    def __init__(self, datos: Path, resultados: Path, pipeline: Path, red: str | None = None,
+                 permitidos: set[str] | None = None):
         self.datos, self.resultados, self.pipeline = datos, resultados, pipeline
-        self.token = secrets.token_urlsafe(32)
+        # En modo móvil la clave se teclea en el teléfono: 16 caracteres (96 bits) siguen siendo imposibles de adivinar.
+        self.token = secrets.token_urlsafe(12 if red else 32)
+        self.red = red
+        self.permitidos = permitidos or set()
         self.puerto = 0
         self.lock = threading.Lock()
         self.proceso: subprocess.Popen | None = None
@@ -199,6 +211,7 @@ class Estado:
     def resumen(self) -> dict:
         figuras = self.resultados / 'figuras'
         return {'datos': str(self.datos), 'resultados': str(self.resultados), 'pyradiomics': self.hay_pyradiomics(),
+                'movil': bool(self.red),
                 'casos': self.lista_casos(), 'informe': (self.resultados / 'informe.pdf').is_file(),
                 'figuras': sorted(p.name for p in figuras.iterdir() if FIGURA.match(p.name))
                 if figuras.is_dir() else []}
@@ -232,7 +245,12 @@ class Manejador(BaseHTTPRequestHandler):
 
     def _autorizado(self, consulta: dict) -> bool:
         host = self.headers.get('Host', '')
-        if host not in (f'127.0.0.1:{self.est.puerto}', f'localhost:{self.est.puerto}'):
+        validos = {f'127.0.0.1:{self.est.puerto}', f'localhost:{self.est.puerto}'}
+        if self.est.red:
+            validos.add(f'{self.est.red}:{self.est.puerto}')
+        if host not in validos:
+            return False
+        if not cliente_permitido(self.client_address[0], self.est.permitidos):
             return False
         token = self.headers.get('X-Token') or (consulta.get('t') or [''])[0]
         return secrets.compare_digest(token.encode(), self.est.token.encode())
@@ -310,11 +328,41 @@ class Manejador(BaseHTTPRequestHandler):
             self._json(500, {'error': 'Error interno.'})
 
 
-def crear_servidor(datos: Path, resultados: Path, puerto: int = 8765, pipeline: Path | None = None) -> ThreadingHTTPServer:
-    srv = ThreadingHTTPServer(('127.0.0.1', puerto), Manejador)
+def cliente_permitido(ip: str, permitidos: set[str]) -> bool:
+    """El propio PC siempre; si hay lista de permitidos, solo esos aparatos; si no, cualquiera de la red interna."""
+    return ip in ('127.0.0.1', '::1') or not permitidos or ip in permitidos
+
+
+def ip_red_interna() -> str:
+    """Dirección del PC en la red del hospital (no envía nada: solo pregunta al sistema por qué tarjeta saldría)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.connect(('10.255.255.255', 1))
+        return s.getsockname()[0]
+
+
+def comprobar_ip_interna(ip: str) -> str:
+    """Solo direcciones privadas (10.x, 172.16-31.x, 192.168.x): nunca una dirección pública de internet."""
+    direccion = ipaddress.ip_address(ip)
+    if not direccion.is_private or direccion.is_loopback or direccion.is_unspecified:
+        raise ValueError(f'{ip} no es una dirección de red interna: el modo móvil no se abre a internet.')
+    return ip
+
+
+def crear_servidor(datos: Path, resultados: Path, puerto: int = 8765, pipeline: Path | None = None,
+                   red: str | None = None, permitidos: set[str] | None = None,
+                   certificado: Path | None = None, clave: Path | None = None) -> ThreadingHTTPServer:
+    if red:
+        comprobar_ip_interna(red)
+    srv = ThreadingHTTPServer((red or '127.0.0.1', puerto), Manejador)
     srv.daemon_threads = True
-    srv.estado = Estado(Path(datos), Path(resultados), pipeline or RAIZ / 'run_pipeline.py')
+    srv.estado = Estado(Path(datos), Path(resultados), pipeline or RAIZ / 'run_pipeline.py', red, permitidos)
     srv.estado.puerto = srv.server_address[1]
+    srv.cifrado = bool(certificado)
+    if certificado:
+        contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        contexto.minimum_version = ssl.TLSVersion.TLSv1_2
+        contexto.load_cert_chain(str(certificado), str(clave) if clave else None)
+        srv.socket = contexto.wrap_socket(srv.socket, server_side=True)
     return srv
 
 
@@ -324,11 +372,38 @@ def main(argv=None) -> int:
     p.add_argument('--resultados', type=Path, default=Path('outputs'))
     p.add_argument('--puerto', type=int, default=8765)
     p.add_argument('--abrir', action='store_true', help='abre la dirección en el navegador')
+    p.add_argument('--movil', nargs='?', const='auto', default=None, metavar='IP',
+                   help='abre la app a la red interna del hospital para usarla desde el móvil (IP del PC o «auto»)')
+    p.add_argument('--permitir', action='append', default=[], metavar='IP',
+                   help='solo este aparato (p. ej. la IP de tu móvil en la wifi del hospital); se puede repetir')
+    p.add_argument('--certificado', type=Path, help='certificado TLS (.pem) que dé Informática, para cifrar')
+    p.add_argument('--clave', type=Path, help='clave privada del certificado (.pem)')
     a = p.parse_args(argv)
-    srv = crear_servidor(a.datos, a.resultados, a.puerto)
-    url = f'http://127.0.0.1:{srv.estado.puerto}/?t={srv.estado.token}'
-    print('Solo en el PC del hospital. Nada sale de este ordenador.')
-    print(f'Abre esta dirección en el navegador:\n{url}')
+    red = None
+    if a.movil:
+        red = ip_red_interna() if a.movil == 'auto' else a.movil
+    try:
+        srv = crear_servidor(a.datos, a.resultados, a.puerto, red=red, permitidos=set(a.permitir),
+                             certificado=a.certificado, clave=a.clave)
+    except (ValueError, OSError, ssl.SSLError) as e:
+        print(f'No se pudo arrancar: {e}')
+        return 1
+    esquema = 'https' if a.certificado else 'http'
+    url_pc = f'{esquema}://127.0.0.1:{srv.estado.puerto}/?t={srv.estado.token}' if not red else None
+    if red:
+        url = f'{esquema}://{red}:{srv.estado.puerto}/?t={srv.estado.token}'
+        print('MODO MÓVIL: la app se abre a la RED INTERNA del hospital (nunca a internet).')
+        print('Úsala con el móvil en la wifi interna o con la VPN del hospital, con el permiso de Informática y del')
+        print('delegado de protección de datos. Cierra la app (Ctrl+C) cuando termines.')
+        if not a.certificado:
+            print('AVISO: sin certificado, la conexión NO va cifrada dentro de la red. Pide uno a Informática.')
+        if a.permitir:
+            print(f'Solo pueden entrar: {", ".join(a.permitir)} (y este PC).')
+        print(f'En el móvil, abre:\n{url}\nClave: {srv.estado.token}')
+    else:
+        url = url_pc
+        print('Solo en el PC del hospital. Nada sale de este ordenador.')
+        print(f'Abre esta dirección en el navegador:\n{url}')
     print('Para cerrar: Ctrl+C.', flush=True)
     if a.abrir:
         webbrowser.open(url)
