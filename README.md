@@ -21,10 +21,44 @@ casos **sintéticos**.
 | 3 | `src/03_qc.py` | Volumen, diámetro máximo axial (alerta si < 10 mm, RECIST 1.1) y 3D, máscaras vacías o con varios componentes, homogeneidad técnica | `outputs/qc_report.csv`, `qc_heterogeneidad_tecnica.csv` |
 | 4 | `src/04_reproducibilidad.py` | Dice y Hausdorff 95 entre observadores; ICC(2,1) de acuerdo absoluto con IC 95 % por característica (pingouin), sin filtrar | `outputs/reproducibilidad_*.csv` |
 | 5 | `src/05_descriptivo.py` | Media, DE, mediana, RIC, mín., máx., ausentes y CV del subconjunto prioritario; histogramas, cajas y Spearman | `outputs/descriptivo.csv`, `spearman.csv`, `figuras/` |
-| 6 | `src/06_informe.py` | Informe PDF para leer en el móvil | `outputs/informe.pdf` |
+| 6 | `src/06_informe.py` | Informe PDF para leer en el móvil, con el flujo de casos y la lectura del ICC | `outputs/informe.pdf` |
+| 7 | `src/07_resumen_movil.py` | Resumen de una página con **solo agregados** (recuentos de 1 a 4 como «< 5») | `outputs/resumen_movil.html` |
+
+Los pasos 4 y 5 analizan solo los casos con decisión «incluir» (ver «Decisiones de casos»).
 
 Configuración: `config/params.yaml` (pyRadiomics, comentado línea a línea) y `config/features_prioritarias.yaml`.
 Definiciones, IBSI y diferencias: `docs/diccionario_variables.md`.
+
+## Interfaz local
+
+Una página para preparar los casos y anotar decisiones sin tocar archivos: `app/LEEME.md`. En Windows se abre con
+`lanzar_app.bat`. Corre solo en el PC del hospital.
+
+## Antes de segmentar
+
+Cómo segmentar y la regla del borde: `docs/segmentacion-guia.md`. El sorteo de los casos que segmentará un segundo
+observador, con semilla fija y antes de segmentar:
+`python src/seleccion_reproducibilidad.py --casos data/crudo`.
+
+## Cómo leer los resultados
+
+`docs/guia_interpretacion.md`: qué mide cada característica y cada estadístico (Dice, ICC con su IC 95 %, CV…), en
+lenguaje llano. El informe repite lo esencial en cada bloque, en «Qué dicen tus datos».
+
+## Decisiones de casos
+
+El paso 3 **propone** y el radiólogo **decide**; nada se excluye en silencio. Propuesta: «excluir» si la única alerta
+es el diámetro axial < 10 mm (protocolo §5); «revisar» con cualquier otra alerta; «incluir» sin alertas. La decisión
+final se escribe en `data/decisiones_casos.csv` (columnas `id,decision,motivo`; `decision` = `incluir`, `excluir` o
+`revisar`; la rellena la interfaz local o el radiólogo a mano). Sin fila para un caso, vale la propuesta. Un caso
+«revisar» sin decidir **no se analiza** y el pipeline lo avisa. El informe cuenta todo en la página «Flujo de casos».
+Tras decidir: `python run_pipeline.py --input data --output outputs --desde 3`.
+
+## Resumen para el móvil
+
+`outputs/resumen_movil.html` (paso 7): una página con solo agregados, sin códigos de caso y con los recuentos de 1 a 4
+como «< 5». **No se publica en ningún sitio.** Antes de sacarlo del PC del hospital hay que pedir permiso al delegado
+de protección de datos (protocolo §13).
 
 ## Instalación en un Windows del hospital, sin permisos de administrador
 
@@ -124,7 +158,7 @@ data/
 venv\Scripts\activate.bat
 python run_pipeline.py --input data --output outputs
 python run_pipeline.py --input data --output outputs_bw10 --binwidth 10
-python run_pipeline.py --input data --output outputs --desde 2      (si los NIfTI ya están en data\casos)
+python run_pipeline.py --input data --output outputs --desde 2      (si los NIfTI ya están en data\casos; --desde admite 1 a 7)
 ```
 
 Las rutas son relativas a la carpeta desde la que ejecutas: no hay ninguna ruta absoluta en el código.
