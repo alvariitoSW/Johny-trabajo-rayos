@@ -53,7 +53,8 @@ class ErrorUsuario(Exception):
 class Estado:
     def __init__(self, datos: Path, resultados: Path, pipeline: Path, red: str | None = None,
                  permitidos: set[str] | None = None):
-        self.datos, self.resultados, self.pipeline = datos, resultados, pipeline
+        # Rutas completas: el pipeline se lanza desde la carpeta del proyecto, no desde donde se abrió la app.
+        self.datos, self.resultados, self.pipeline = datos.resolve(), resultados.resolve(), pipeline.resolve()
         # En modo móvil la clave se teclea en el teléfono: 16 caracteres (96 bits) siguen siendo imposibles de adivinar.
         self.token = secrets.token_urlsafe(12 if red else 32)
         self.red = red

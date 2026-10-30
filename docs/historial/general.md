@@ -76,3 +76,8 @@ concreta). Se añadió `--movil`: escucha en la IP de red interna del PC (solo d
 opcional con certificado de Informática. Sin certificado la conexión no va cifrada dentro de la red: queda como aviso
 en pantalla y en `app/LEEME.md`. No se abre nunca a internet (túneles o puertos): sacaría datos de pacientes de los
 equipos autorizados (protocolo §13). 72 pruebas.
+
+**Vídeo explicativo y arreglo de rutas de la app (30/10/2026).** Para el vídeo de cómo funciona la app (hecho con
+capturas reales y 10 casos sintéticos; no se sube al repositorio) se vio un fallo: si la app se abría con una ruta
+relativa (`--datos data`) desde otra carpeta, «Ejecutar» no encontraba los casos, porque el pipeline arranca desde
+la carpeta del proyecto. `app/servidor.py` convierte ahora las rutas en rutas completas al arrancar. 73 pruebas.
