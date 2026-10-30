@@ -1,0 +1,26 @@
+# Datos de pacientes: NUNCA en este repositorio (es público). CLAUDE.md §2.
+datos/
+datos-reales/
+*.dcm
+*.dicom
+*.ima
+*.nii
+*.nii.gz
+*.nrrd
+*.nhdr
+*.mha
+*.mhd
+*.xlsx
+*.xls
+*.sav
+*.omv
+# Las tablas solo se permiten como datos simulados o configuración
+*.csv
+*.tsv
+!datos-ejemplo/*.csv
+!analisis/config/*.csv
+
+# Herramientas
+__pycache__/
+.DS_Store
+.ipynb_checkpoints/
