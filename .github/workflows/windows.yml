@@ -1,0 +1,51 @@
+# Compila pyRadiomics 3.1.0 para Windows y prueba el pipeline entero en un Windows real (datos SINTÉTICOS).
+# Deja la «rueda» (.whl) como archivo descargable: en el PC del hospital se instala sin compilador
+# (README, «Instalación», opción B). No usa ni ve ningún dato de pacientes.
+name: Windows · rueda de pyRadiomics y pruebas
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'requirements*.txt'
+      - '.github/workflows/windows.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'app/**'
+      - 'run_pipeline.py'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Dependencias (binarios de PyPI)
+        run: python -m pip install -r requirements.txt
+      - name: Compilar pyRadiomics (rueda para Windows)
+        run: python -m pip wheel -r requirements-pyradiomics.txt --no-deps -w ruedas
+      - name: Instalar la rueda, como en el hospital
+        shell: pwsh
+        run: python -m pip install (Get-ChildItem ruedas\pyradiomics-*.whl).FullName --no-deps
+      - name: Comprobar la instalación
+        run: python -c "import radiomics; from radiomics import cMatrices; print(radiomics.__version__)"
+      - name: Pruebas del pipeline (datos sintéticos)
+        run: python -m pytest tests -q -p no:cacheprovider
+      - name: Guardar la rueda para descargar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyradiomics-windows-python${{ matrix.python }}
+          path: ruedas/*.whl
+          if-no-files-found: warn
+          retention-days: 90
