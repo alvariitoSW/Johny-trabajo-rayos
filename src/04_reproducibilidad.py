@@ -12,12 +12,21 @@ características, sin filtrar por ningún umbral de ICC.
 Salida:  <salida>/reproducibilidad_segmentacion.csv   Dice y HD95 por caso
          <salida>/reproducibilidad_icc.csv            ICC e IC 95 % por característica
          <salida>/reproducibilidad_features.csv       características de cada observador (para auditar)
+         <salida>/reproducibilidad_resumen.json       n de casos, aviso si hay menos de 15, Dice y HD95 (medianas)
+
+Columnas añadidas al ICC (etiquetas, nunca filtros; no se quita ninguna fila):
+  · fiabilidad_koo_li: etiqueta de Koo y Li 2016 según el IC 95 % entero (comun.fiabilidad_koo_li).
+  · cautela: True si el límite inferior del IC 95 % es < 0,5. Texto: «interpretar con cautela: no se descarta
+    una fiabilidad pobre».
+Aviso: con menos de 15 casos con dos observadores (mínimo orientativo del protocolo §8) se avisa y se anota en el
+resumen; el paso no se detiene.
 
 Uso:  python src/04_reproducibilidad.py --entrada data --salida outputs [--binwidth 10]
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import warnings
 from pathlib import Path
@@ -82,6 +91,8 @@ def icc_por_caracteristica(largo: pd.DataFrame, prioritarias: set[str]) -> pd.Da
                 fila['nota'] = f'ICC no calculable: {e}'
         filas.append(fila)
     tabla = pd.DataFrame(filas)
+    tabla['fiabilidad_koo_li'] = [comun.fiabilidad_koo_li(i, u) for i, u in zip(tabla['ic95_inf'], tabla['ic95_sup'])]
+    tabla['cautela'] = tabla['ic95_inf'] < 0.5  # NaN → False
     return tabla.sort_values(['prioritaria', 'caracteristica'], ascending=[False, True]).round(4)
 
 
@@ -118,6 +129,22 @@ def main(argv=None) -> int:
     pd.DataFrame(seg).to_csv(a.salida / 'reproducibilidad_segmentacion.csv', index=False, encoding='utf-8')
     icc.to_csv(a.salida / 'reproducibilidad_icc.csv', index=False, encoding='utf-8')
     ancho.to_csv(a.salida / 'reproducibilidad_features.csv', index=False, encoding='utf-8')
+    minimo = 15
+    aviso = ''
+    if len(casos) < minimo:
+        aviso = (f'Solo hay {len(casos)} casos con dos observadores; el protocolo (§8) orienta a un mínimo de '
+                 f'{minimo}. Los ICC tendrán intervalos muy anchos: interprétalos con cautela.')
+        print('AVISO: ' + aviso)
+    segdf = pd.DataFrame(seg)
+
+    def mediana(c):
+        v = segdf[c].dropna()
+        return None if v.empty else float(v.median())
+
+    (a.salida / 'reproducibilidad_resumen.json').write_text(json.dumps(
+        {'n_casos': len(casos), 'minimo_protocolo': minimo, 'aviso': aviso,
+         'dice_mediana': mediana('dice'), 'hd95_mediana_mm': mediana('hd95_mm')},
+        ensure_ascii=False, indent=2), encoding='utf-8')
     print(f'Paso 4: {len(casos)} casos con dos observadores; ICC de {len(icc)} características '
           f'→ {a.salida / "reproducibilidad_icc.csv"}')
     return 0

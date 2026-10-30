@@ -138,3 +138,30 @@ def versiones() -> dict:
 def mascara_binaria(mascara: sitk.Image) -> sitk.Image:
     """Cualquier valor > 0 pasa a 1; tipo uint8."""
     return sitk.Cast(mascara > 0, sitk.sitkUInt8)
+
+
+def fiabilidad_koo_li(inf, sup) -> str:
+    """Etiqueta de fiabilidad según el IC 95 % del ICC (es una etiqueta, nunca un filtro).
+
+    Fuente: Koo TK, Li MY. J Chiropr Med 2016;15(2):155-163: «Based on the 95% confident interval of the ICC
+    estimate, values less than 0.5, between 0.5 and 0.75, between 0.75 and 0.9, and greater than 0.90 are
+    indicative of poor, moderate, good, and excellent reliability».
+    Se clasifica el IC entero: el límite inferior y el superior. Si caen en la misma categoría, esa; si no,
+    «de <inferior> a <superior>». NaN en cualquiera de los dos → «no calculable».
+    Fronteras usadas: <0,5 pobre; 0,5 a 0,75 (0,5 incluido) moderada; 0,75 a 0,9 (0,75 y 0,9 incluidos) buena;
+    >0,9 excelente. Dónde cae cada frontera exacta es una decisión de implementación (la fuente no lo precisa).
+    """
+    if inf is None or sup is None or np.isnan(inf) or np.isnan(sup):
+        return 'no calculable'
+
+    def categoria(x: float) -> str:
+        if x < 0.5:
+            return 'pobre'
+        if x < 0.75:
+            return 'moderada'
+        if x <= 0.9:
+            return 'buena'
+        return 'excelente'
+
+    a, b = categoria(float(inf)), categoria(float(sup))
+    return a if a == b else f'de {a} a {b}'
