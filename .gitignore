@@ -33,3 +33,6 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 .DS_Store
+
+# Copias de trabajo temporales de los agentes (no se suben)
+.claude/worktrees/
