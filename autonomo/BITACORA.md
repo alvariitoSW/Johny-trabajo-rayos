@@ -69,7 +69,23 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 ### B-007 · Selección al azar del 20-30 % para el segundo observador · apuntado 2026-10-30
 - **Cómo lo entiendo**: tipo `script`. Un script con semilla fija que, a partir de la lista de códigos, elige el
   20-30 % (mínimo 15 si se puede, §8) y lo deja registrado. Se ejecuta en el hospital.
-- **Depende de**: B-004. **Tamaño**: pequeña.
+- **Depende de**: B-004. **Tamaño**: pequeña. **Se une a B-012** (Consejo 30/10).
+
+### Del Consejo del 30/10 (acta `autonomo/consejo/2026-10-30.md`)
+- **Lo que dijiste**: «una ley para explicar de manera sencilla la interpretación estadística […] excluir
+  automáticamente los casos con alertas del QC; definir por escrito una regla de segmentación del borde; interpretar
+  con cautela primer orden y GLCM si su ICC sale bajo; reproducibilidad con 15 casos o más […] y construir la interfaz
+  donde subir los datos de los pacientes y los casos»; «tendría que poder verlo en cualquier momento desde el móvil».
+
+| Nº | Qué | Recomendación del Consejo | Coste | Orden |
+|---|---|---|---|---|
+| B-011 | Etiqueta de cautela por IC 95 % (Koo y Li) en la tabla de ICC + aviso si hay < 15 casos con dos observadores | aprobar; etiqueta, nunca filtro (§11.3) | ≈0,3 M | 1 |
+| B-008 | **Ley** de explicar en llano (texto en el acta, va a REGLAS §4) + `docs/guia_interpretacion.md` + página «Cómo leer cada medida» en el PDF | aprobar el texto; tres niveles (qué mide · qué se ve en la TC con fuente · significado clínico: no se da) | ≈1,4 M | 2 |
+| B-010 | Guía escrita de segmentación del borde, fechada antes de segmentar | aprobar; **erosión y ventana: tú y tu tutor** | ≈1,1 M | 3 |
+| B-012 | Sorteo con semilla del 30 % (≥15) para el 2.º observador, antes de segmentar (une B-007) | aprobar | ≈0,9 M | 3 |
+| B-009 | **Revisar y contar en vez de excluir automáticamente**: el pipeline propone, el radiólogo decide, diagrama de flujo de casos | aprobar el cambio frente a tu propuesta | ≈1,3 M | 4 |
+| B-013 | Interfaz **local** en el PC del hospital (biblioteca estándar, solo 127.0.0.1); primera fase: Nuevo caso + Ejecutar | **decides tú** (arquitectura); después de probar la instalación | ≈2,2 M (todo ≈4,5 M) | 6 |
+| B-014 | Ver desde el móvil: método ya en GitHub; datos por acceso remoto del hospital; resumen agregado solo con permiso del delegado de protección de datos | **decides tú** y el hospital | ≈0,8 M (el resumen) | 7 |
 
 ---
 
@@ -81,6 +97,10 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 
 - **Tu visto bueno** a B-001, B-002, B-004, B-007 y lo que falta de B-003 y B-005.
 - **Probar la instalación en el PC del hospital** (README, «Instalación»): no se ha probado en Windows.
+- **Las 5 decisiones del Consejo del 30/10** (acta, «Lo que espera al usuario»): la ley, revisar en vez de excluir,
+  erosión y ventana con tu tutor, la interfaz y el acceso desde el móvil.
+- **Pedir a Informática** el acceso remoto (VPN o escritorio remoto) al PC del estudio, y consultar al delegado de
+  protección de datos si se puede sacar un resumen agregado al móvil.
 - **Quién es quién**: quién segmenta (observador 1 y 2) y qué radiólogo revisa (§8). Solo los papeles, sin nombres en
   el repositorio si prefieres.
 - **Comité de Ética** (§13): cuándo se presenta; el protocolo v0 aún tiene huecos (B-001).
