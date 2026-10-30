@@ -18,6 +18,7 @@
   </header>
 
   <main class="wrap">
+    <div class="mode-note" id="modo" role="status" hidden></div>
     <section class="card" aria-labelledby="nueva-titulo">
       <h2 id="nueva-titulo">Nueva entrada</h2>
       <form id="form-nueva" class="entry-form" novalidate>
@@ -186,6 +187,15 @@
         <button type="submit" class="btn btn-primary" value="guardar">Guardar cambios</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="dlg-borrar" class="dlg-confirm" aria-labelledby="borrar-titulo">
+    <h2 id="borrar-titulo">¿Borrar la entrada?</h2>
+    <p><strong id="borrar-nombre"></strong> se borrará y no se puede recuperar.</p>
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" id="btn-borrar-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-danger" id="btn-borrar-confirmar">Borrar</button>
+    </div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

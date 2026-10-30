@@ -1,10 +1,11 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { openDatabase } from './db.js';
+import { STATUSES, isValidDate, validateEntry, toCSV } from '../public/core.js';
+
+export { STATUSES, isValidDate, validateEntry };
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
-
-export const STATUSES = ['pendiente', 'en_progreso', 'completada'];
 
 const NOT_FOUND = { error: 'No encontrado' };
 
@@ -13,126 +14,6 @@ class ValidationError extends Error {
     super('Datos inválidos');
     this.details = details;
   }
-}
-
-// Fecha real del calendario en formato YYYY-MM-DD (rechaza 2026-02-30)
-export function isValidDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [y, m, d] = value.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
-}
-
-/**
- * Valida y normaliza el cuerpo de una entrada (POST y PUT).
- * Devuelve { value, errors } con todos los mensajes acumulados.
- */
-export function validateEntry(body) {
-  const errors = [];
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-    return { value: null, errors: ['El cuerpo debe ser un objeto JSON'] };
-  }
-  const value = {};
-
-  // date
-  if (body.date === undefined || body.date === null || body.date === '') {
-    errors.push('La fecha es obligatoria');
-  } else if (!isValidDate(body.date)) {
-    errors.push('La fecha debe ser válida con formato YYYY-MM-DD');
-  } else {
-    value.date = body.date;
-  }
-
-  // title
-  if (body.title === undefined || body.title === null) {
-    errors.push('El título es obligatorio');
-  } else if (typeof body.title !== 'string') {
-    errors.push('El título debe ser texto');
-  } else {
-    const title = body.title.trim();
-    if (title.length === 0) errors.push('El título es obligatorio');
-    else if (title.length > 200) errors.push('El título no puede superar 200 caracteres');
-    else value.title = title;
-  }
-
-  // notes
-  if (body.notes === undefined || body.notes === null) {
-    value.notes = '';
-  } else if (typeof body.notes !== 'string') {
-    errors.push('Las notas deben ser texto');
-  } else if (body.notes.length > 5000) {
-    errors.push('Las notas no pueden superar 5000 caracteres');
-  } else {
-    value.notes = body.notes;
-  }
-
-  // minutes
-  if (body.minutes === undefined || body.minutes === null) {
-    value.minutes = 0;
-  } else if (typeof body.minutes !== 'number' || !Number.isInteger(body.minutes)) {
-    errors.push('Los minutos deben ser un número entero');
-  } else if (body.minutes < 0 || body.minutes > 1440) {
-    errors.push('Los minutos deben estar entre 0 y 1440');
-  } else {
-    value.minutes = body.minutes;
-  }
-
-  // category
-  if (body.category === undefined || body.category === null) {
-    value.category = 'General';
-  } else if (typeof body.category !== 'string') {
-    errors.push('La categoría debe ser texto');
-  } else {
-    const category = body.category.trim();
-    if (category.length > 50) errors.push('La categoría no puede superar 50 caracteres');
-    else value.category = category || 'General';
-  }
-
-  // status
-  if (body.status === undefined || body.status === null) {
-    value.status = 'completada';
-  } else if (!STATUSES.includes(body.status)) {
-    errors.push(`El estado debe ser uno de: ${STATUSES.join(', ')}`);
-  } else {
-    value.status = body.status;
-  }
-
-  // tags
-  if (body.tags === undefined || body.tags === null) {
-    value.tags = [];
-  } else if (!Array.isArray(body.tags)) {
-    errors.push('Las etiquetas deben ser un arreglo de textos');
-  } else {
-    const tags = [];
-    let tagErrors = false;
-    body.tags.forEach((raw, i) => {
-      if (typeof raw !== 'string') {
-        errors.push(`La etiqueta ${i + 1} debe ser texto`);
-        tagErrors = true;
-        return;
-      }
-      const tag = raw.trim();
-      if (tag.length === 0) {
-        errors.push(`La etiqueta ${i + 1} no puede estar vacía`);
-        tagErrors = true;
-      } else if (tag.length > 30) {
-        errors.push(`La etiqueta "${tag.slice(0, 30)}…" no puede superar 30 caracteres`);
-        tagErrors = true;
-      } else if (tags.includes(tag)) {
-        errors.push(`La etiqueta "${tag}" está duplicada`);
-        tagErrors = true;
-      } else {
-        tags.push(tag);
-      }
-    });
-    if (body.tags.length > 10) {
-      errors.push('No se permiten más de 10 etiquetas');
-      tagErrors = true;
-    }
-    if (!tagErrors) value.tags = tags;
-  }
-
-  return { value: errors.length ? null : value, errors };
 }
 
 // Lee y valida los filtros de la query (from, to, q, category, status, tag)
@@ -167,12 +48,6 @@ function parseId(raw) {
   if (!/^\d+$/.test(raw)) return null;
   const id = Number(raw);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
-
-// Escapado RFC 4180
-function csvField(value) {
-  const s = value == null ? '' : String(value);
-  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function createApp({ dbPath = ':memory:' } = {}) {
@@ -233,16 +108,7 @@ export function createApp({ dbPath = ':memory:' } = {}) {
 
   api.get('/export.csv', (req, res) => {
     const filters = parseFilters(req.query, ['from', 'to']);
-    const entries = store.listEntries(filters, 'asc');
-    const header = ['id', 'date', 'title', 'minutes', 'category', 'status', 'tags', 'notes'];
-    const lines = [header.join(',')];
-    for (const e of entries) {
-      lines.push([
-        e.id, e.date, e.title, e.minutes, e.category, e.status, e.tags.join(';'), e.notes,
-      ].map(csvField).join(','));
-    }
-    // BOM UTF-8 para que Excel muestre bien los acentos
-    const csv = '﻿' + lines.join('\r\n') + '\r\n';
+    const csv = toCSV(store.listEntries(filters, 'asc'));
     res.set('Content-Type', 'text/csv; charset=utf-8');
     res.set('Content-Disposition', 'attachment; filename="bitacora.csv"');
     res.send(csv);

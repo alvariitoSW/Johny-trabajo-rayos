@@ -114,7 +114,7 @@ class ApiError extends Error {
   }
 }
 
-async function api(path, options = {}) {
+async function httpApi(path, options = {}) {
   const opts = { ...options, headers: { Accept: 'application/json', ...(options.headers || {}) } };
   if (opts.body !== undefined && typeof opts.body !== 'string') {
     opts.body = JSON.stringify(opts.body);
@@ -138,6 +138,11 @@ async function api(path, options = {}) {
     throw new ApiError(msg, res.status, details);
   }
   return data;
+}
+
+// La versión en la nube (claude.ai) define window.bitacoraApi con la misma interfaz.
+function api(path, options) {
+  return (window.bitacoraApi || httpApi)(path, options);
 }
 
 function qs(params) {
@@ -327,9 +332,22 @@ dlg.addEventListener('close', () => { editingId = null; });
 
 // ---------- Borrado ----------
 
-async function deleteEntry(entry) {
-  const ok = window.confirm(`¿Borrar la entrada «${entry.title}»? Esta acción no se puede deshacer.`);
-  if (!ok) return;
+const dlgBorrar = $('#dlg-borrar');
+let deleting = null;
+
+function deleteEntry(entry) {
+  deleting = entry;
+  $('#borrar-nombre').textContent = `«${entry.title}»`;
+  dlgBorrar.showModal();
+}
+
+$('#btn-borrar-cancelar').addEventListener('click', () => dlgBorrar.close());
+dlgBorrar.addEventListener('close', () => { deleting = null; });
+
+$('#btn-borrar-confirmar').addEventListener('click', async () => {
+  const entry = deleting;
+  dlgBorrar.close();
+  if (!entry) return;
   try {
     await api(`/api/entries/${encodeURIComponent(entry.id)}`, { method: 'DELETE' });
     toast('Entrada borrada');
@@ -340,7 +358,7 @@ async function deleteEntry(entry) {
     }
   }
   await loadAll();
-}
+});
 
 // ---------- Filtros ----------
 
@@ -404,6 +422,20 @@ formFiltros.addEventListener('input', (ev) => {
   loadAll();
 });
 formFiltros.addEventListener('submit', (ev) => ev.preventDefault());
+
+$('#btn-export').addEventListener('click', async (ev) => {
+  if (!window.bitacoraExport) return; // servidor: el enlace descarga el CSV
+  ev.preventDefault();
+  const { from, to } = state.filters;
+  try {
+    if (await window.bitacoraExport({ from, to })) toast('CSV exportado');
+  } catch (err) {
+    toast(`No se pudo exportar: ${err.message}`);
+  }
+});
+
+// Cambios hechos desde otro dispositivo (versión en la nube)
+document.addEventListener('bitacora:cambio', () => loadAll());
 
 $('#btn-limpiar').addEventListener('click', () => {
   state.filters = { ...rangeFor('mes'), q: '', category: '', status: '' };
