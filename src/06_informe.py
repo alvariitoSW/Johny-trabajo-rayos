@@ -68,17 +68,29 @@ class Informe:
         plt.close(fig)
 
     def texto(self, titulo: str, parrafos: list[str]):
-        fig = self.pagina()
-        y = 0.95
-        for linea in textwrap.wrap(titulo, 32):
-            fig.text(0.07, y, linea, fontsize=13, weight='bold', color=AZUL, va='top')
-            y -= 0.03
-        y -= 0.02
+        """Página de texto. Si no cabe, sigue en otra página con el mismo título. Un párrafo que empieza
+        por «## » sale como subtítulo en negrita."""
+        def nueva(sufijo=''):
+            fig = self.pagina()
+            y = 0.95
+            for linea in textwrap.wrap(titulo + sufijo, 32):
+                fig.text(0.07, y, linea, fontsize=13, weight='bold', color=AZUL, va='top')
+                y -= 0.03
+            return fig, y - 0.02
+
+        fig, y = nueva()
         for parrafo in parrafos:
-            for linea in textwrap.wrap(parrafo, 46) or ['']:
-                fig.text(0.07, y, linea, fontsize=8.6, va='top')
+            subtitulo = parrafo.startswith('## ')
+            lineas = textwrap.wrap(parrafo[3:] if subtitulo else parrafo, 40 if subtitulo else 46) or ['']
+            reserva = 0.1 if subtitulo else 0      # que un subtítulo no quede solo al pie de la página
+            if y - 0.021 * len(lineas) - reserva < 0.04:
+                self.cerrar_pagina(fig)
+                fig, y = nueva(' (sigue)')
+            for linea in lineas:
+                fig.text(0.07, y, linea, fontsize=9.6 if subtitulo else 8.6, va='top',
+                         weight='bold' if subtitulo else 'normal', color=AZUL if subtitulo else 'black')
                 y -= 0.021
-            y -= 0.012
+            y -= 0.006 if subtitulo else 0.012
         self.cerrar_pagina(fig)
 
     def tabla(self, titulo: str, cabecera: list[str], filas: list[list[str]], anchos: list[int], nota: str = ''):
@@ -168,11 +180,182 @@ def leer(ruta: Path) -> pd.DataFrame:
     return pd.read_csv(ruta) if ruta.exists() else pd.DataFrame()
 
 
+# ------------------------------------------------------------------------- explicaciones en llano
+# Resumen del apartado 1 de docs/guia_interpretacion.md (fuentes allí).
+COMO_LEER = [
+    '## Qué es la radiómica',
+    'Convierte la imagen en números con fórmulas. Dentro del contorno de la lesión mide tres cosas: cuántas UH '
+    'tiene (primer orden), qué forma tiene (forma) y cómo se colocan los grises unos junto a otros (texturas).',
+    'Cada número sale de una fórmula concreta del programa (pyRadiomics). Otro programa con un nombre parecido '
+    'puede dar otro número.',
+    '## Qué se puede concluir',
+    'Cómo son, en cifras, las lesiones de esta muestra. Y si dos radiólogos que segmentan la misma lesión '
+    'obtienen las mismas cifras.',
+    '## Qué NO se puede concluir',
+    'Nada sobre pronóstico, respuesta ni diagnóstico: el estudio es descriptivo (protocolo §11.4).',
+    'Estas cifras no son biomarcadores validados. Que dos cifras vayan juntas no quiere decir que una cause la '
+    'otra (van Timmeren 2020).',
+    '## Tres niveles de explicación',
+    '1) Qué mide: sale de la documentación del programa. 2) Qué se ve en la TC: solo si una fuente radiológica '
+    'lo dice; si no, «sin fuente». 3) Qué significa para el paciente: no se da.',
+    '## En qué orden leerlo',
+    'Primero el control de calidad (¿hay casos raros?). Después la reproducibilidad (¿se mide igual con otro '
+    'observador?). Por último el perfil de las lesiones. Una cifra que no se reproduce se lee con cautela. '
+    'Tras cada bloque, «Qué dicen tus datos» lo resume en frases.',
+]
+
+COMO_LEER_ESTADISTICOS = [
+    '## Media ± DE',
+    'La media es el promedio de las lesiones; la DE (desviación estándar), cuánto se separan de él.',
+    '## Mediana (RIC)',
+    'La mediana es el valor del medio al ordenar las lesiones. El RIC (rango intercuartílico) va del percentil 25 '
+    'al 75: ahí cae la mitad central. Si la media y la mediana se separan mucho, hay valores extremos.',
+    '## Ausentes',
+    'Un campo vacío es un dato ausente, nunca un 0 (protocolo §11.1).',
+    '## CV (%)',
+    'Coeficiente de variación: DE / media × 100. No se calcula en UH (el 0 es el agua, no «nada»), ni con '
+    'valores negativos o medias cercanas a 0 (protocolo §11.2).',
+    '## Diagrama de caja',
+    'La caja va del percentil 25 al 75; la línea roja es la mediana; los bigotes llegan hasta el dato más lejano '
+    'a menos de 1,5 RIC de la caja; los puntos sueltos son lesiones atípicas, para revisar en la imagen.',
+    '## Spearman (ρ)',
+    'De −1 a 1: si dos características suben juntas al ordenar las lesiones. Solo sirve para ver qué '
+    'características dicen lo mismo (redundancia), nunca asociación clínica (protocolo §11.2).',
+    '## Dice',
+    'Cuánto se solapan los contornos de dos observadores: 0 = nada, 1 = idénticos.',
+    '## HD95 (mm)',
+    'Distancia por debajo de la cual queda el 95 % del borde de un contorno respecto al otro. Dato extra: el '
+    'protocolo solo pide Dice.',
+    '## ICC con IC 95 %',
+    'Si dos observadores dan el mismo número en cada lesión. Mira el IC 95 % antes que el número: un ICC de 0,99 '
+    'con IC de 0,18 a 1,00 no dice nada. Tramos de Koo y Li (2016), leídos sobre el IC: < 0,5 pobre; 0,5-0,75 '
+    'moderada; 0,75-0,9 buena; > 0,9 excelente. El ICC depende también de lo distintas que sean las lesiones '
+    'entre sí.',
+]
+
+
+def _minuscula(frase: str) -> str:
+    """Primera letra en minúscula tras «Mide:», salvo siglas (GLCM, UH…)."""
+    return frase[0].lower() + frase[1:] if len(frase) > 1 and frase[1].islower() else frase
+
+
+def fichas_medidas(config: dict) -> list[str]:
+    """Una ficha por característica prioritaria, con en_llano, valor_alto y aviso del yaml."""
+    parrafos = []
+    for i, c in enumerate(config.get('caracteristicas', []), 1):
+        unidad = c.get('unidad', '—')
+        parrafos.append(f'## {i}. {c["nombre"]}' + (f' ({unidad})' if unidad not in ('—', '') else ''))
+        parrafos.append(f'Mide: {_minuscula(c.get("en_llano", "") or "sin explicación")}')
+        parrafos.append(f'Valor alto: {_minuscula(c.get("valor_alto", "") or "sin explicación")}')
+        if c.get('aviso'):
+            parrafos.append(f'Aviso: {_minuscula(c["aviso"])}')
+    parrafos.append('Qué significa para el paciente: no se da (estudio descriptivo, protocolo §11.4).')
+    return parrafos
+
+
+def lectura_qc(qc: pd.DataFrame) -> list[str]:
+    """«Qué dicen tus datos» del control de calidad, con las cifras reales. Sin juicios clínicos."""
+    if qc.empty:
+        return []
+    n = len(qc)
+    alertas = qc[qc['alertas'] != 'ninguna']
+    d = pd.to_numeric(qc['diametro_axial_max_mm'], errors='coerce').dropna()
+    v = pd.to_numeric(qc['volumen_ml'], errors='coerce').dropna()
+    frases = []
+    if len(d):
+        frases.append(f'El diámetro axial mayor va de {num(d.min())} a {num(d.max())} mm (mediana {num(d.median())} mm).'
+                      f' El volumen, de {num(v.min(), 2)} a {num(v.max(), 2)} mL.')
+    if len(alertas):
+        frases.append(f'{len(alertas)} de {n} lesiones tienen alguna alerta: '
+                      + '; '.join(f'{f["id"]} ({f["alertas"]})' for _, f in alertas.iterrows())
+                      + '. Una alerta no excluye el caso: señala qué mirar en la imagen.')
+    else:
+        frases.append(f'Ninguna de las {n} lesiones tiene alertas de calidad.')
+    return frases
+
+
+def lectura_segmentacion(seg: pd.DataFrame, qc: pd.DataFrame | None = None) -> list[str]:
+    """«Qué dicen tus datos» de Dice y HD95."""
+    if seg.empty:
+        return []
+    dice = pd.to_numeric(seg['dice'], errors='coerce')
+    hd = pd.to_numeric(seg['hd95_mm'], errors='coerce')
+    frases = [f'{dice.notna().sum()} lesiones tienen dos observadores. El Dice mediano fue {num(dice.median(), 2)} '
+              f'(de {num(dice.min(), 2)} a {num(dice.max(), 2)}). Un 1 sería un solapamiento perfecto; un 0, '
+              'ninguno.']
+    if dice.notna().any():
+        peor = seg.loc[dice.idxmin()]
+        extra = ''
+        if qc is not None and not qc.empty and 'volumen_ml' in qc:
+            vol = qc.loc[qc['id'] == peor['id'], 'volumen_ml']
+            if len(vol):
+                extra = f', una lesión de {num(vol.iloc[0], 2)} mL'
+        frases.append(f'El Dice más bajo fue el de {peor["id"]} ({num(peor["dice"], 2)}{extra}).')
+    if hd.notna().any():
+        frases.append(f'HD95 mediano: {num(hd.median(), 2)} mm. En la mitad de los casos, el 95 % del borde de un '
+                      f'observador queda a {num(hd.median(), 2)} mm o menos del otro.')
+    frases.append('Ojo: que los contornos se solapen no asegura que las cifras de cada característica coincidan '
+                  '(van Timmeren 2020). Eso lo mide el ICC.')
+    return frases
+
+
+def atipicos(valores: pd.Series, p25: float, p75: float) -> int:
+    """Número de valores más allá de los bigotes del diagrama de caja (1,5 RIC desde la caja, como matplotlib)."""
+    v = pd.to_numeric(valores, errors='coerce').dropna()
+    ric = p75 - p25
+    return int(((v < p25 - 1.5 * ric) | (v > p75 + 1.5 * ric)).sum())
+
+
+def lectura_descriptivo(desc: pd.DataFrame, datos: pd.DataFrame | None = None) -> list[str]:
+    """«Qué dicen tus datos» del perfil radiómico: rango central de la atenuación, mayor CV, asimetrías
+    fuertes (media fuera del RIC), atípicos y ausentes."""
+    if desc.empty:
+        return []
+    frases = []
+    media = desc[desc['columna'] == 'original_firstorder_Mean']
+    if len(media) and pd.notna(media.iloc[0]['p25']):
+        f = media.iloc[0]
+        frases.append(f'La mitad de las lesiones tiene una atenuación media entre {num(f["p25"])} y {num(f["p75"])} UH '
+                      f'(mediana {num(f["mediana"])} UH; de {num(f["minimo"])} a {num(f["maximo"])}).')
+    cv = pd.to_numeric(desc.get('cv_pct'), errors='coerce')
+    if cv is not None and cv.notna().any():
+        f = desc.loc[cv.idxmax()]
+        frases.append(f'La que más varía de una lesión a otra, en proporción a su media, es {f["caracteristica"]} '
+                      f'(CV {num(f["cv_pct"], 0)} %).')
+    torcidas = [f for _, f in desc.iterrows() if pd.notna(f.get('media')) and pd.notna(f.get('p25'))
+                and not (f['p25'] <= f['media'] <= f['p75'])]
+    if torcidas:
+        frases.append('Media fuera de la mitad central (entre los percentiles 25 y 75): unos pocos valores extremos '
+                      'tiran de ella. El protocolo deja describir con media o mediana según la distribución (§11.1): '
+                      + '; '.join(f'{f["caracteristica"]} (media {num(f["media"])}, mediana {num(f["mediana"])})'
+                                  for f in torcidas) + '.')
+    if datos is not None and not datos.empty:
+        lista = []
+        for _, f in desc.iterrows():
+            if f['columna'] in datos and pd.notna(f.get('p25')):
+                k = atipicos(datos[f['columna']], f['p25'], f['p75'])
+                if k:
+                    lista.append(f'{f["caracteristica"]} ({k})')
+        frases.append('Lesiones con valor atípico (puntos sueltos del diagrama de caja), por característica: ' + '; '.join(lista)
+                      + '. Conviene mirarlas en la imagen; no se quitan.' if lista
+                      else 'Ninguna característica tiene lesiones atípicas en el diagrama de caja.')
+    ausentes = pd.to_numeric(desc['ausentes'], errors='coerce').fillna(0)
+    if ausentes.sum():
+        frases.append('Faltan datos en: ' + '; '.join(f'{f["caracteristica"]} ({int(f["ausentes"])})'
+                                                       for _, f in desc[ausentes > 0].iterrows())
+                      + '. Un vacío es dato ausente, nunca 0.')
+    else:
+        frases.append('No falta ningún valor.')
+    frases.append('Son cifras descriptivas de esta muestra: no indican pronóstico ni diagnóstico (protocolo §11.4).')
+    return frases
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--entrada', type=Path, default=Path('data'))
     p.add_argument('--salida', type=Path, default=Path('outputs'))
     p.add_argument('--pdf', type=Path, default=None, help='ruta del PDF (por defecto <salida>/informe.pdf)')
+    p.add_argument('--prioritarias', type=Path, default=comun.CONFIG / 'features_prioritarias.yaml')
     a = p.parse_args(argv)
 
     s = a.salida
@@ -180,6 +363,10 @@ def main(argv=None) -> int:
     qc, het = leer(s / 'qc_report.csv'), leer(s / 'qc_heterogeneidad_tecnica.csv')
     seg, icc = leer(s / 'reproducibilidad_segmentacion.csv'), leer(s / 'reproducibilidad_icc.csv')
     desc = leer(s / 'descriptivo.csv')
+    datos = leer(s / 'features.csv')
+    if 'error' in datos:
+        datos = datos[datos['error'].isna() | (datos['error'] == '')]
+    config = comun.cargar_yaml(a.prioritarias) if a.prioritarias.exists() else {}
     sintetico = (a.entrada / 'DATOS_SINTETICOS.txt').exists()
     aviso = 'DATOS SINTÉTICOS · SOLO PRUEBA DEL PIPELINE' if sintetico else ''
     ruta_pdf = a.pdf or s / 'informe.pdf'
@@ -197,11 +384,15 @@ def main(argv=None) -> int:
         f'Extracción: pyRadiomics {versiones.get("pyradiomics", "?")}, imagen original en UH, 3D, remuestreo a '
         f'1×1×1 mm, anchura de intervalo {num(meta.get("binWidth"), 0)} UH, sin filtros. '
         f'Huella de params.yaml: {str(meta.get("params_sha256", "?"))[:12]}…',
-        'Contenido: 1) control de calidad; 2) homogeneidad técnica; 3) reproducibilidad interobservador '
+        'Contenido: cómo leer el informe y cada medida; 1) control de calidad; 2) homogeneidad técnica; 3) reproducibilidad interobservador '
         '(Dice, Hausdorff 95, ICC); 4) perfil radiómico descriptivo; 5) distribuciones; 6) correlación de '
         'Spearman; 7) cómo se calculó.',
         'Estudio descriptivo: no incluye modelos predictivos, curvas ROC ni contrastes entre subgrupos.',
     ])
+    inf.texto('Cómo leer este informe', COMO_LEER)
+    inf.texto('Cómo leer cada estadístico', COMO_LEER_ESTADISTICOS)
+    if config.get('caracteristicas'):
+        inf.texto('Cómo leer cada medida', fichas_medidas(config))
 
     if not qc.empty:
         col_menor = next((c for c in qc.columns if c.startswith('menor_')), None)
@@ -212,6 +403,7 @@ def main(argv=None) -> int:
                   'Ø axial: mayor diámetro en un corte axial (criterio RECIST 1.1 de lesión medible, ≥ 10 mm). '
                   'Ø 3D: mayor distancia entre centros de vóxel del borde. '
                   f'Lesiones por debajo de 10 mm: {int(qc[col_menor].sum()) if col_menor else 0}.')
+        inf.texto('1 · Qué dicen tus datos', lectura_qc(qc))
     if not het.empty:
         inf.tabla('2 · Homogeneidad técnica', ['Variable', 'Valor', 'n', '%'],
                   [[f['variable'], f['valor'], f['n'], num(f['porcentaje'])] for _, f in het.iterrows()],
@@ -226,7 +418,10 @@ def main(argv=None) -> int:
                   f'{num(seg["dice"].max(), 3)}). HD95: mediana {num(seg["hd95_mm"].median(), 2)} mm. '
                   'Dice 1 = segmentaciones idénticas; HD95 = distancia (mm) por debajo de la cual queda el 95 % '
                   'del borde de una segmentación respecto a la otra.')
+        inf.texto('3 · Qué dicen tus datos: contornos', lectura_segmentacion(seg, qc))
     if not icc.empty:
+        # [HUECO b-009: lectura del ICC] Aquí irá «Qué dicen tus datos» del ICC, con la función de etiquetas
+        # de fiabilidad (tramos de Koo y Li leídos sobre el IC 95 %).
         def tabla_icc(titulo, t):
             nombre = lambda c: c.replace('original_', '').replace('_', ' · ', 1)  # noqa: E731
             filas = [[nombre(f['caracteristica']), num(f['icc'], 3), f'{num(f["ic95_inf"], 2)} a {num(f["ic95_sup"], 2)}',
@@ -252,6 +447,7 @@ def main(argv=None) -> int:
                     f['nota'] if isinstance(f.get('nota'), str) else ''] for _, f in desc.iterrows()],
                   [16, 3, 6, 6, 16], 'CV = DE / |media| × 100. Se omite en escalas sin cero verdadero (UH) o con '
                   'valores ≤ 0 (protocolo §11.2).')
+        inf.texto('4 · Qué dicen tus datos', lectura_descriptivo(desc, datos))
 
     figuras = sorted((s / 'figuras').glob('distribucion_*.png'))
     if figuras:

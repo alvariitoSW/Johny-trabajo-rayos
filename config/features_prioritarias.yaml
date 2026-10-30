@@ -9,6 +9,11 @@
 #             false en escalas de intervalo con cero arbitrario (UH: 0 = agua) o con valores que
 #             pueden ser negativos o cero (asimetría). Protocolo §11.2.
 #
+#   en_llano:   qué mide, en una frase (nivel 1 de la guía: documentación de pyRadiomics 3.1.0)
+#   valor_alto: qué indica un valor alto, en una frase (mismo origen; nunca significado clínico)
+#   aviso:      trampa al leerla (tamaño, binWidth, escala distinta a IBSI); "" si no hay
+#   Fuente de cada frase (archivo:línea del docstring de pyRadiomics): docs/guia_interpretacion.md.
+#
 # Definiciones, códigos IBSI y diferencias con IBSI: docs/diccionario_variables.md.
 
 # Por debajo de este valor absoluto de la media, el CV se omite aunque cv sea true
@@ -17,26 +22,140 @@ cv_media_minima: 1.0e-6
 
 caracteristicas:
   # --- Primer orden (sobre UH sin discretizar, salvo la entropía) ---
-  - {columna: original_firstorder_Mean,              nombre: "Media",              unidad: "UH",   cv: false}
-  - {columna: original_firstorder_StandardDeviation, nombre: "Desviación estándar", unidad: "UH",  cv: true}
-  - {columna: original_firstorder_10Percentile,      nombre: "Percentil 10",       unidad: "UH",   cv: false}
-  - {columna: original_firstorder_90Percentile,      nombre: "Percentil 90",       unidad: "UH",   cv: false}
-  - {columna: original_firstorder_Skewness,          nombre: "Asimetría",          unidad: "—",    cv: false}
-  - {columna: original_firstorder_Kurtosis,          nombre: "Curtosis (no exceso)", unidad: "—",  cv: true}
-  - {columna: original_firstorder_Entropy,           nombre: "Entropía (histograma)", unidad: "bits", cv: true}
+  - columna: original_firstorder_Mean
+    nombre: "Media"
+    unidad: "UH"
+    cv: false
+    en_llano: "Atenuación media de la lesión: el promedio de las UH de todos sus vóxeles."
+    valor_alto: "La lesión atenúa más de media (más UH)."
+    aviso: "Escala en UH, con el 0 en el agua: no lleva CV (protocolo §11.2)."
+  - columna: original_firstorder_StandardDeviation
+    nombre: "Desviación estándar"
+    unidad: "UH"
+    cv: true
+    en_llano: "Cuánto se apartan las UH de cada vóxel de la media de su propia lesión."
+    valor_alto: "Las UH varían más dentro de la lesión."
+    aviso: "Es la variación dentro de una lesión; la DE de las tablas es otra: la variación entre lesiones."
+  - columna: original_firstorder_10Percentile
+    nombre: "Percentil 10"
+    unidad: "UH"
+    cv: false
+    en_llano: "UH por debajo de la cual queda el 10 % de los vóxeles: la parte menos densa de la lesión."
+    valor_alto: "Hasta la parte menos densa de la lesión tiene UH altas."
+    aviso: "Escala en UH: no lleva CV (protocolo §11.2)."
+  - columna: original_firstorder_90Percentile
+    nombre: "Percentil 90"
+    unidad: "UH"
+    cv: false
+    en_llano: "UH por debajo de la cual queda el 90 % de los vóxeles: la parte más densa de la lesión."
+    valor_alto: "La parte más densa de la lesión tiene más UH."
+    aviso: "Escala en UH: no lleva CV (protocolo §11.2)."
+  - columna: original_firstorder_Skewness
+    nombre: "Asimetría"
+    unidad: "—"
+    cv: false
+    en_llano: "Si el histograma de UH de la lesión es simétrico o tiene una cola más larga hacia un lado."
+    valor_alto: "Positiva: cola larga hacia UH altas; negativa: hacia UH bajas; 0: simétrico."
+    aviso: "Puede ser negativa: no lleva CV. Si la lesión no varía nada, pyRadiomics da 0."
+  - columna: original_firstorder_Kurtosis
+    nombre: "Curtosis (no exceso)"
+    unidad: "—"
+    cv: true
+    en_llano: "Si las UH se agolpan en un pico junto a la media o se reparten hacia las colas."
+    valor_alto: "Más vóxeles con UH lejos de la media (colas más pesadas)."
+    aviso: "pyRadiomics no resta 3: su valor es 3 más alto que la curtosis IBSI."
+  - columna: original_firstorder_Entropy
+    nombre: "Entropía (histograma)"
+    unidad: "bits"
+    cv: true
+    en_llano: "Desorden de las UH de la lesión, ya agrupadas en intervalos (binWidth)."
+    valor_alto: "Las UH son menos predecibles: más desorden."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
   # --- Forma ---
-  - {columna: original_shape_MeshVolume,             nombre: "Volumen (malla)",    unidad: "mm³",  cv: true}
-  - {columna: original_shape_Sphericity,             nombre: "Esfericidad",        unidad: "—",    cv: true}
-  - {columna: original_shape_SurfaceVolumeRatio,     nombre: "Superficie/volumen", unidad: "mm⁻¹", cv: true}
+  - columna: original_shape_MeshVolume
+    nombre: "Volumen (malla)"
+    unidad: "mm³"
+    cv: true
+    en_llano: "Volumen de la lesión segmentada, medido sobre una malla de su superficie."
+    valor_alto: "Lesión más grande."
+    aviso: "Mide el contorno dibujado: cambia si cambia la segmentación."
+  - columna: original_shape_Sphericity
+    nombre: "Esfericidad"
+    unidad: "—"
+    cv: true
+    en_llano: "Cuánto se parece la forma de la lesión a una esfera; va de 0 a 1."
+    valor_alto: "Lesión más redonda; 1 = esfera perfecta."
+    aviso: ""
+  - columna: original_shape_SurfaceVolumeRatio
+    nombre: "Superficie/volumen"
+    unidad: "mm⁻¹"
+    cv: true
+    en_llano: "Superficie de la lesión dividida entre su volumen."
+    valor_alto: "Forma menos compacta, o lesión más pequeña."
+    aviso: "Depende del tamaño de la lesión: no compares lesiones de tamaño muy distinto por esta cifra sola."
   # --- GLCM ---
-  - {columna: original_glcm_Contrast,                nombre: "GLCM Contraste",     unidad: "—",    cv: true}
-  - {columna: original_glcm_Idm,                     nombre: "GLCM Homogeneidad (IDM)", unidad: "—", cv: true}
-  - {columna: original_glcm_JointEntropy,            nombre: "GLCM Entropía conjunta", unidad: "bits", cv: true}
+  - columna: original_glcm_Contrast
+    nombre: "GLCM Contraste"
+    unidad: "—"
+    cv: true
+    en_llano: "Diferencia de gris entre vóxeles vecinos."
+    valor_alto: "Los vóxeles vecinos son más distintos entre sí."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
+  - columna: original_glcm_Idm
+    nombre: "GLCM Homogeneidad (IDM)"
+    unidad: "—"
+    cv: true
+    en_llano: "Homogeneidad local: cuánto se parecen los grises de los vóxeles vecinos."
+    valor_alto: "Los vecinos se parecen más (textura más homogénea)."
+    aviso: "Cambia con el binWidth. Pendiente de decidir: Idm o Id como homogeneidad principal."
+  - columna: original_glcm_JointEntropy
+    nombre: "GLCM Entropía conjunta"
+    unidad: "bits"
+    cv: true
+    en_llano: "Desorden de las parejas de grises de vóxeles vecinos."
+    valor_alto: "Las parejas de vecinos son más variadas."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
   # --- GLRLM ---
-  - {columna: original_glrlm_ShortRunEmphasis,       nombre: "GLRLM SRE",          unidad: "—",    cv: true}
-  - {columna: original_glrlm_LongRunEmphasis,        nombre: "GLRLM LRE",          unidad: "—",    cv: true}
-  - {columna: original_glrlm_GrayLevelNonUniformity, nombre: "GLRLM GLN",          unidad: "—",    cv: true}
+  - columna: original_glrlm_ShortRunEmphasis
+    nombre: "GLRLM SRE"
+    unidad: "—"
+    cv: true
+    en_llano: "Peso de las rachas cortas: tramos rectos de vóxeles seguidos con el mismo gris."
+    valor_alto: "Más rachas cortas: textura más fina."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
+  - columna: original_glrlm_LongRunEmphasis
+    nombre: "GLRLM LRE"
+    unidad: "—"
+    cv: true
+    en_llano: "Peso de las rachas largas: tramos rectos de vóxeles seguidos con el mismo gris."
+    valor_alto: "Más rachas largas: textura más gruesa."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
+  - columna: original_glrlm_GrayLevelNonUniformity
+    nombre: "GLRLM GLN"
+    unidad: "—"
+    cv: true
+    en_llano: "Lo distintos que son entre sí los grises de la lesión, contados por rachas."
+    valor_alto: "Grises menos parecidos entre sí."
+    aviso: "Depende del tamaño de la lesión (no está normalizada). Cambia con el binWidth."
   # --- GLSZM (equivalente pyRadiomics de la GLZLM de LIFEx; no se asume la misma fórmula) ---
-  - {columna: original_glszm_SmallAreaEmphasis,      nombre: "GLSZM SAE",          unidad: "—",    cv: true}
-  - {columna: original_glszm_LargeAreaEmphasis,      nombre: "GLSZM LAE",          unidad: "—",    cv: true}
-  - {columna: original_glszm_SizeZoneNonUniformity,  nombre: "GLSZM SZN",          unidad: "—",    cv: true}
+  - columna: original_glszm_SmallAreaEmphasis
+    nombre: "GLSZM SAE"
+    unidad: "—"
+    cv: true
+    en_llano: "Peso de las zonas pequeñas: manchas 3D de vóxeles unidos con el mismo gris."
+    valor_alto: "Más zonas pequeñas: textura más fina."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
+  - columna: original_glszm_LargeAreaEmphasis
+    nombre: "GLSZM LAE"
+    unidad: "—"
+    cv: true
+    en_llano: "Peso de las zonas grandes: manchas 3D de vóxeles unidos con el mismo gris."
+    valor_alto: "Más zonas grandes: textura más gruesa."
+    aviso: "Cambia con la anchura de intervalo (binWidth)."
+  - columna: original_glszm_SizeZoneNonUniformity
+    nombre: "GLSZM SZN"
+    unidad: "—"
+    cv: true
+    en_llano: "Lo variados que son los tamaños de las zonas (manchas 3D del mismo gris)."
+    valor_alto: "Tamaños de zona más variados."
+    aviso: "Depende del tamaño de la lesión. Cambia con el binWidth."
