@@ -71,7 +71,7 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
   20-30 % (mínimo 15 si se puede, §8) y lo deja registrado. Se ejecuta en el hospital.
 - **Depende de**: B-004. **Tamaño**: pequeña. **Se une a B-012** (Consejo 30/10).
 
-### Del Consejo del 30/10 (acta `autonomo/consejo/2026-10-30.md`)
+### Del Consejo del 30/10 (acta `autonomo/consejo/2026-10-30.md`) · **aplicado el 30/10** («aplica todo»)
 - **Lo que dijiste**: «una ley para explicar de manera sencilla la interpretación estadística […] excluir
   automáticamente los casos con alertas del QC; definir por escrito una regla de segmentación del borde; interpretar
   con cautela primer orden y GLCM si su ICC sale bajo; reproducibilidad con 15 casos o más […] y construir la interfaz
@@ -125,6 +125,11 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 
 ## 6. Hecho esta semana
 
+- 2026-10-30 · **Consejo aplicado** (B-008 a B-014): ley de explicar en llano (REGLAS §4.4) y guía
+  `docs/guia_interpretacion.md` (página para el móvil: https://claude.ai/artifact/R39N6BzDFiV1Ps6Asfmt69); lectura
+  automática en el PDF; etiqueta de fiabilidad del ICC (Koo y Li) y aviso < 15; sorteo con semilla; guía del borde
+  (erosión, ventana y herramienta, en blanco para ti y tu tutor); revisar y contar con diagrama de flujo; interfaz
+  local (demo: https://claude.ai/artifact/TgboL9UoqGhQD3xD3Lv5v2); resumen agregado para el móvil (paso 7).
 - 2026-10-30 · **Pipeline de radiómica** (pedido directo del usuario): conversión y anonimización, extracción con
   pyRadiomics 3.1.0, control de calidad, reproducibilidad (Dice, HD95, ICC), descriptivo, informe PDF para el móvil,
   diccionario de variables, generador de datos sintéticos y 12 pruebas. Informe de ejemplo en `examples/`.

@@ -49,3 +49,21 @@ Slicer + pyRadiomics (no LIFEx), binWidth 25 por defecto (10 opcional) y la matr
   al diámetro axial (como RECIST 1.1). HD95 = el mayor de los dos percentiles 95 dirigidos. ICC = «ICC2» de pingouin.
 - **Pruebas**: 12 (pytest) sobre 10 casos sintéticos con UH, ruido y tamaño conocidos, identificadores falsos en las
   cabeceras, segmentaciones tipo Slicer y DICOM-SEG, y dos casos trampa (lesión de 8 mm y dos componentes).
+
+## 30/10/2026 · Consejo de Ministros aplicado («aplica todo»)
+
+Acta: `autonomo/consejo/2026-10-30.md`. Cuatro constructores en paralelo (cada uno en su copia del repositorio) y
+una segunda tanda que tocó los archivos compartidos.
+- **Ley de explicar en llano** (REGLAS §4.4) y `docs/guia_interpretacion.md`: tres niveles (qué mide, qué se ve en la TC
+  con fuente, significado clínico: no se da). Fuentes abiertas nuevas: van Timmeren 2020, Koo y Li 2016 (resumen),
+  Ganeshan y Miles 2013 (`docs/fuentes/LEEME.md`). El PDF lleva «Cómo leer…» y párrafos «Qué dicen tus datos».
+- **Revisar y contar** (no excluir en silencio): `decision_propuesta` en el QC, `data/decisiones_casos.csv` del
+  radiólogo, solo se analizan los incluidos y `flujo_casos.csv` + página «Flujo de casos». Una lesión < 10 mm sin
+  decisión queda «excluir (propuesta)» hasta que el radiólogo la confirme; §6 (pasar a la siguiente lesión) no está
+  automatizado.
+- **ICC**: etiqueta de fiabilidad por IC 95 % (Koo y Li; fronteras 0,5/0,75/0,9 como decisión de implementación),
+  nunca filtro; aviso si hay < 15 casos; `src/seleccion_reproducibilidad.py` (sorteo con semilla).
+- **Interfaz local** (`app/`, biblioteca estándar, solo 127.0.0.1, token, sin registros) y **resumen agregado para el
+  móvil** (paso 7; recuentos 1-4 como «< 5»). Riesgo anotado: por diferencia entre recuentos se pueden deducir
+  números pequeños; lo valora el delegado de protección de datos.
+- Pruebas: 67.
