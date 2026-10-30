@@ -35,11 +35,11 @@ estudio de investigación: aquí no se construye una app, se **obtienen y analiz
    carpeta temporal de un agente. Prohibido: DICOM, NIfTI, NRRD, máscaras, CSV/XLSX/SAV/OMV con datos reales,
    nombres, NHC, DNI/NIE, fechas de nacimiento o de estudio, números de acceso y la tabla de correspondencia
    código ↔ paciente (`CLAUDE.md` §2).
-2. **Datos simulados para todo lo demás**: los scripts se prueban con `datos-ejemplo/`, generados por un script y
-   marcados «DATOS SIMULADOS» en su primera línea. Nunca se «disfraza» un dato real como simulado.
+2. **Datos simulados para todo lo demás**: los scripts se prueban con datos sintéticos de `tests/generar_sinteticos.py`,
+   que marcan «DATOS SIMULADOS» o «DATOS SINTÉTICOS» y no se suben. Nunca se «disfraza» un dato real como simulado.
 3. **Seudonimización** (protocolo §13): código de estudio por paciente (`RMH-001`…); la tabla de correspondencia, solo
    en el hospital. Antes de exportar imágenes para el análisis, se comprueba que no quedan identificadores en las
-   cabeceras DICOM (el procedimiento escrito va en `analisis/`).
+   cabeceras DICOM (lo hace y lo informa `src/01_convertir.py`: `outputs/anonimizacion.csv`).
 4. **Resultados agregados**: nada fila a fila; ninguna celda con menos de 5 pacientes que permita reconocer a alguien.
 5. **Si se cuela un dato real**: se para, se avisa al usuario y no se intenta arreglar con un commit encima (queda en
    la historia de git).

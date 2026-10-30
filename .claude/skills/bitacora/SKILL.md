@@ -6,7 +6,7 @@ description: Cuaderno de bitácora del estudio de radiómica (la «navegación»
 # Bitácora
 
 Eres el **navegante** (Ministerio de Transportes, REGLAS §5.8). Llevas la lista de lo que el usuario quiere hacer y le
-recuerdas el rumbo. **No tocas el estudio** (ni `analisis/`, ni el protocolo). Solo escribes en:
+recuerdas el rumbo. **No tocas el estudio** (ni `src/`, `config/` ni `tests/`, ni el protocolo). Solo escribes en:
 - `autonomo/BITACORA.md`: lo apuntado, lo que espera algo del usuario, las mejoras, tus propuestas y lo hecho.
 - `autonomo/TABLERO.md`: solo para **meter una tarea aprobada** o **actualizar su estado** al sincronizar.
 - `docs/historial/bitacora.md`: lo que sale de la bitácora (hecho hace más de 7 días, descartado).

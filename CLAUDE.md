@@ -30,8 +30,9 @@ estudio de investigación. Este archivo son **las reglas vigentes**, cortas a pr
   segmentación, tablas con datos reales (CSV, XLSX, SAV, OMV), nombres, NHC, DNI/NIE, fechas de nacimiento, fechas
   de estudio, números de acceso, ni la tabla que une el código del paciente con su identidad.
 - Los datos reales viven **solo** en los equipos y entornos autorizados por el hospital (protocolo §13, RGPD). En
-  el repositorio solo hay: el protocolo, el diccionario de variables, la configuración de extracción, los scripts y
-  **datos simulados** (`datos-ejemplo/`, marcados como simulados en su primera línea).
+  el repositorio solo hay: el protocolo, el diccionario de variables, la configuración de extracción, los scripts,
+  el generador de **datos sintéticos** (`tests/generar_sinteticos.py`; lo que genera tampoco se sube) y el informe
+  de ejemplo hecho con ellos (`examples/`).
 - Lo que se publique de resultados va **agregado** (medias, medianas, ICC), nunca fila a fila, y sin celdas de menos
   de 5 pacientes que permitan reconocer a alguien.
 - `.gitignore` bloquea las extensiones de datos; `python3 autonomo/jueces.py` lo comprueba antes de cada commit.
@@ -46,7 +47,7 @@ estudio de investigación. Este archivo son **las reglas vigentes**, cortas a pr
 - **Una lesión índice por paciente**: la de mayor volumen que cumpla los criterios técnicos y de lesión diana de
   RECIST 1.1 (≥10 mm), elegida con una regla fijada **antes** de analizar las imágenes (§6).
 - **Configuración de extracción única y escrita antes de extraer** (§9): imagen original en UH, 3D, remuestreo,
-  interpolación, discretización y filtros. Se guarda en un archivo versionado (`analisis/config/`) y no se toca a
+  interpolación, discretización y filtros. Se guarda en un archivo versionado (`config/params.yaml`) y no se toca a
   mitad del estudio; si cambia, se vuelve a extraer todo y el historial lo cuenta.
 - **No se asumen equivalencias entre programas** (§10): una característica de LIFEx y otra de PyRadiomics con nombre
   parecido no son la misma si su fórmula difiere. Cada variable del diccionario lleva su nombre exacto en el programa,
@@ -56,18 +57,24 @@ estudio de investigación. Este archivo son **las reglas vigentes**, cortas a pr
   efectos aleatorios) y Dice. Se informa por variable, sin un único umbral de ICC que declare «válida» una
   característica.
 - **Lo que el protocolo deja abierto** (marcado con «???» o «¿…?» en el texto: grosor de corte, matriz, un solo
-  equipo de TC, marca del contraste, erosión del contorno, matriz de Spearman, LIFEx frente a la opción B) **no lo
-  decide el agente**: va a la bitácora como duda para el usuario y su tutor.
+  equipo de TC, marca del contraste, erosión del contorno) **no lo decide el agente**: va a la bitácora como duda
+  para el usuario y su tutor. Ya decidido por el usuario (30/10/2026): **3D Slicer + pyRadiomics** (no LIFEx) y
+  matriz de Spearman exploratoria. Pendiente de pasar al protocolo: binWidth por defecto 25 UH (el v0 dice 10 como
+  ejemplo).
 
 ## 4. Estructura
 
 ```
+run_pipeline.py      ejecuta los pasos en orden (--input, --output, --binwidth)
+src/                 01_convertir … 06_informe y comun.py (piezas compartidas)
+config/              params.yaml (pyRadiomics) y features_prioritarias.yaml
+tests/               generador de datos sintéticos y pruebas (pytest) del pipeline entero
+scripts/             guías opcionales (casos públicos de TCIA)
+examples/            informe de ejemplo con datos sintéticos
 docs/protocolo/      el protocolo (fuente principal) y sus versiones
-docs/fuentes/        PDF de las fuentes (IBSI, RECIST 1.1, manuales de LIFEx y PyRadiomics…) con su #page=
-docs/historial/      la historia del trabajo
-analisis/            scripts del análisis (descriptiva, ICC, Dice, gráficos) y config/ (extracción, diccionario)
-datos-ejemplo/       datos SIMULADOS para probar los scripts (nunca reales)
+docs/                diccionario_variables.md; docs/fuentes/ (PDF de las fuentes con su #page=); docs/historial/
 autonomo/            plan socialista: guía, reglas, bitácora, tablero, sesiones, partes, Consejo y jueces
+data/, outputs/      SOLO en el PC del hospital; bloqueadas en .gitignore
 ```
 
 ## 5. Fuentes
@@ -93,8 +100,11 @@ autonomo/            plan socialista: guía, reglas, bitácora, tablero, sesione
 - Un campo vacío es **dato ausente**, nunca 0. Se cuenta y se informa (§11.1).
 - El coeficiente de variación solo donde tenga sentido (no con medias cercanas a cero ni escalas con negativos,
   §11.2).
-- Herramientas: las que diga el protocolo (SPSS, Python, jamovi). Ninguna librería nueva sin que el usuario la elija;
-  mientras no elija, Python con la biblioteca estándar.
+- Herramientas elegidas por el usuario (30/10/2026): segmentación en 3D Slicer; Python 3.10+ (probado en 3.11) con
+  pyRadiomics 3.1.0 (commit `6a761c4`), SimpleITK, pydicom, pandas, SciPy, pingouin y matplotlib, con versiones
+  fijadas en `requirements*.txt`. Ninguna librería más sin que el usuario la elija.
+- Rutas siempre configurables por la línea de órdenes; ninguna ruta absoluta en el código.
+- `python -m pytest tests -q` en verde antes de dar por bueno un cambio del pipeline.
 - Escalera antes de escribir código (ver `AGENTS.md`): reutiliza lo que hay antes de escribir nada nuevo.
 
 ## 7. Git

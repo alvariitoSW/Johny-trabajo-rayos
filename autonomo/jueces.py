@@ -6,7 +6,7 @@ Uso:  python3 autonomo/jueces.py            (desde la raíz del repositorio)
 
 Comprueba los archivos que git subiría (seguidos y nuevos no ignorados):
   1. Ningún archivo de imagen médica o máscara (DICOM, NIfTI, NRRD, MHA…), por extensión o por la firma «DICM».
-  2. Ninguna tabla de datos (CSV, TSV, XLSX, SAV, OMV…) fuera de `datos-ejemplo/` y `analisis/config/`;
+  2. Ninguna tabla de datos (CSV, TSV, XLSX, SAV, OMV…) fuera de `datos-ejemplo/` y `config/`;
      las de `datos-ejemplo/` empiezan por «DATOS SIMULADOS» en su primera línea.
   3. Ningún DNI, NIE ni NHC con número escrito en un archivo de texto.
 Después ejecuta cada prueba de `autonomo/pruebas/*.py` (cada una sale con 0 si pasa).
@@ -17,9 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-IMAGEN = ('.dcm', '.dicom', '.ima', '.nii', '.nii.gz', '.nrrd', '.nhdr', '.mha', '.mhd', '.raw', '.img', '.hdr')
+IMAGEN = ('.dcm', '.dicom', '.ima', '.nii', '.nii.gz', '.nrrd', '.nhdr', '.seg', '.mha', '.mhd', '.raw', '.img', '.hdr')
 TABLA = ('.csv', '.tsv', '.xlsx', '.xls', '.ods', '.sav', '.omv', '.dta', '.rds', '.parquet', '.feather')
-TABLA_PERMITIDA = ('datos-ejemplo/', 'analisis/config/')
+TABLA_PERMITIDA = ('datos-ejemplo/', 'config/')
 # DNI (8 cifras + letra), NIE (X/Y/Z + 7 cifras + letra) y «NHC» seguido de un número.
 IDENTIFICADOR = re.compile(r'\b\d{8}[A-HJ-NP-TV-Z]\b|\b[XYZ]\d{7}[A-HJ-NP-TV-Z]\b|\bNHC\W{0,3}\d{4,}', re.I)
 TEXTO = ('.md', '.txt', '.py', '.mjs', '.js', '.json', '.yaml', '.yml', '.csv', '.tsv', '.html', '.r', '.sps')
@@ -46,7 +46,7 @@ def fallos_de_datos(raiz):
             continue
         if nombre.endswith(TABLA):
             if not nombre.startswith(TABLA_PERMITIDA):
-                fallos.append(f'{ruta}: tabla de datos fuera de datos-ejemplo/ o analisis/config/')
+                fallos.append(f'{ruta}: tabla de datos fuera de datos-ejemplo/ o config/')
                 continue
             if nombre.startswith('datos-ejemplo/'):
                 primera = absoluta.read_text(encoding='utf-8', errors='replace').split('\n', 1)[0]

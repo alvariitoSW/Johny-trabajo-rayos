@@ -13,21 +13,21 @@ su §, PDF con sus páginas) y, de `autonomo/REGLAS.md`, solo los apartados que 
 la lista de lo que falta. Lee solo el tramo que vas a tocar (`sed -n`), nunca un archivo grande entero. Antes de
 escribir una prueba, busca una que sirva en `autonomo/pruebas/`; la que escribas, guárdala ahí.
 
-**Antes de escribir código, la escalera** (`AGENTS.md`): ¿hace falta? ¿ya existe en `analisis/`? ¿lo hace la
-biblioteca estándar? Solo entonces, lo mínimo que funciona, con su comprobación. **El método no se recorta**: no se
+**Antes de escribir código, la escalera** (`AGENTS.md`): ¿hace falta? ¿ya existe en `src/comun.py` o en otro paso? ¿lo hace una
+librería ya instalada (`requirements.txt`)? Solo entonces, lo mínimo que funciona, con su comprobación. **El método no se recorta**: no se
 resume por debajo del protocolo ni de la fuente.
 
 **Lista de comprobación antes de entregar** (si no la pasas, habrá otra vuelta):
-- [ ] **Ningún dato real** en lo que escribes ni en tu carpeta temporal (REGLAS §2). Solo datos simulados de
-      `datos-ejemplo/`, marcados «DATOS SIMULADOS» en su primera línea.
+- [ ] **Ningún dato real** en lo que escribes ni en tu carpeta temporal (REGLAS §2). Solo los datos sintéticos
+      de `tests/generar_sinteticos.py` (nunca se suben).
 - [ ] **Fiel al protocolo**: cada decisión con su §; lo que el protocolo deja abierto, **no lo decides tú**: lo dejas
       marcado como duda (REGLAS §1.3).
 - [ ] **Lista de frases nuevas** (REGLAS §1.7): cada definición, fórmula o parámetro que escribiste tú, con su fuente
       y página. Sin fuente → se busca otra y se cita (§1.5). Las que quedan sin cita, aparte.
 - [ ] **Nombres exactos de las características** (REGLAS §1.9): el del programa, la fórmula y el código IBSI; nada de
       equivalencias por nombre parecido.
-- [ ] **Cada cálculo con su prueba** (REGLAS §3.2) en `autonomo/pruebas/`, con datos simulados de resultado conocido;
-      un vacío es ausente, nunca 0.
+- [ ] **Cada cálculo con su prueba** (REGLAS §3.2) en `tests/test_pipeline.py`, con datos sintéticos de resultado
+      conocido; un vacío es ausente, nunca 0. `python -m pytest tests -q` en verde.
 - [ ] **Análisis permitido** (REGLAS §3.1): nada de §11.4 del protocolo (modelos, ROC, aprendizaje automático).
 - [ ] **Se lee en el móvil**: tablas estrechas, frases cortas, cada término técnico explicado en una frase.
 - [ ] `python3 autonomo/jueces.py` en verde.

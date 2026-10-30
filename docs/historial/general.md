@@ -29,3 +29,23 @@ estudio), ni las skills de anatomía, radar y mayéutica. Las skills de investig
 - Páginas de Radiology Assistant útiles para el estudio, abiertas con 200 el 30/10/2026 (anatomía segmentaria,
   lesiones hepáticas, RECIST 1.1, protocolos de contraste). TCIA, Zenodo, arXiv, readthedocs y lifexsoft.org están
   bloqueados en la red del entorno: la colección «Colorectal-Liver-Metastases» y el IBSI quedan «por verificar».
+
+## 30/10/2026 · Pipeline de radiómica (pedido directo del usuario)
+
+El usuario (radiólogo) pidió el pipeline completo: conversión y anonimización, extracción con pyRadiomics, control
+de calidad, reproducibilidad, descriptivo, informe PDF, diccionario y pruebas con datos sintéticos. Decidió 3D
+Slicer + pyRadiomics (no LIFEx), binWidth 25 por defecto (10 opcional) y la matriz de Spearman.
+
+- **pyRadiomics**: en PyPI solo hay binarios hasta Python 3.9 y el paquete fuente 3.1.0 no compila (le falta
+  `cmatrices.h`). El usuario autorizó instalarlo desde el repositorio oficial fijado a la etiqueta v3.1.0 (commit
+  `6a761c4`). Se compila; en Windows sin administrador, la vía recomendada es llevar un wheel compilado en otro PC
+  (README). La instalación en Windows no se ha probado.
+- **Del código de pyRadiomics** (no de memoria): StandardDeviation está desactivada por defecto (por eso
+  `params.yaml` lista firstorder entera); la curtosis no es la de exceso (+3 frente a IBSI); la discretización
+  difiere de IBSI; la máscara siempre se remuestrea con vecino más próximo.
+- **IBSI**: el documento de referencia no se pudo abrir (red bloqueada); los códigos van marcados (v).
+- **Decisiones técnicas**: la máscara de Slicer (recortada a su extensión) se recoloca en la rejilla de la imagen
+  sin interpolar, y si el espaciado u orientación no coinciden, el paso 1 para. El criterio de ≥ 10 mm se aplica
+  al diámetro axial (como RECIST 1.1). HD95 = el mayor de los dos percentiles 95 dirigidos. ICC = «ICC2» de pingouin.
+- **Pruebas**: 12 (pytest) sobre 10 casos sintéticos con UH, ruido y tamaño conocidos, identificadores falsos en las
+  cabeceras, segmentaciones tipo Slicer y DICOM-SEG, y dos casos trampa (lesión de 8 mm y dos componentes).

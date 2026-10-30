@@ -1,0 +1,18 @@
+# Dependencias del pipeline, con versión fijada. Probado con Python 3.11 (Linux) el 30/10/2026.
+# Todas se instalan como binarios (wheels) en Windows, Linux y macOS: no hace falta compilador.
+# pyRadiomics va aparte (requirements-pyradiomics.txt): es el único que puede necesitar compilarse. Ver README.
+# Lista completa de lo instalado en la prueba, con dependencias indirectas: requirements-lock.txt
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.3.3
+SimpleITK==2.5.2
+pydicom==3.0.1
+PyYAML==6.0.2
+pingouin==0.5.5
+matplotlib==3.10.7
+# dependencias de pyRadiomics (las que pide su setup)
+PyWavelets==1.8.0
+pykwalify==1.8.0
+six==1.17.0
+# pruebas
+pytest==8.4.2

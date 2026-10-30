@@ -1,0 +1,5 @@
+# pyRadiomics v3.1.0 desde su repositorio oficial, fijado al commit de la etiqueta v3.1.0.
+# Por qué no «pip install pyradiomics==3.1.0»: en PyPI solo hay binarios hasta Python 3.9, y su paquete fuente 3.1.0
+# no compila (le falta radiomics/src/cmatrices.h). Esta línea compila el código: necesita git y un compilador de C
+# (en Windows, «Microsoft C++ Build Tools»). Si el PC del hospital no los tiene, ver README, opción B.
+pyradiomics @ git+https://github.com/AIM-Harvard/pyradiomics.git@6a761c4eb01905cfcb1139b0b158547c55edd4df

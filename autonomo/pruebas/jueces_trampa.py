@@ -18,9 +18,9 @@ with tempfile.TemporaryDirectory() as tmp:
     raiz = Path(tmp)
     subprocess.run(['git', 'init', '-q'], cwd=raiz, check=True)
     (raiz / 'datos-ejemplo').mkdir()
-    (raiz / 'analisis' / 'config').mkdir(parents=True)
+    (raiz / 'config').mkdir()
     (raiz / 'datos-ejemplo' / 'muestra.csv').write_text('# DATOS SIMULADOS\ncodigo,edad\nRMH-001,64\n')
-    (raiz / 'analisis' / 'config' / 'diccionario.csv').write_text('variable,unidad\nedad,años\n')
+    (raiz / 'config' / 'diccionario.csv').write_text('variable,unidad\nedad,años\n')
     (raiz / 'notas.md').write_text('Paciente RMH-001, segmento VII.\n')
     codigo, salida = jueces(raiz)
     assert codigo == 0, f'lo permitido no debería fallar:\n{salida}'

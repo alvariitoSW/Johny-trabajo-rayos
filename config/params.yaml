@@ -1,0 +1,106 @@
+# Configuración de extracción de pyRadiomics (protocolo §9).
+# Es la configuración ÚNICA del estudio: se fija antes de extraer y no se cambia a mitad.
+# Si cambia, se vuelve a extraer todo (el hash de este archivo queda en outputs/features.csv).
+#
+# Comprobado contra pyRadiomics v3.1.0 (commit 6a761c4); las definiciones y diferencias con IBSI,
+# en docs/diccionario_variables.md.
+
+# --- Tipo de imagen -------------------------------------------------------------------------
+# Solo la imagen original, en unidades Hounsfield (UH). Sin filtros (LoG, wavelet…) en el
+# análisis principal (protocolo §9: «Filtros adicionales: ninguno»).
+imageType:
+  Original: {}
+
+# --- Clases de características ----------------------------------------------------------------
+# Lista vacía [] = todas las características de esa clase.
+# firstorder se escribe entera A PROPÓSITO: StandardDeviation está desactivada por defecto en
+# pyRadiomics (la marca como «deprecated» por estar correlacionada con Variance) y solo se calcula
+# si se nombra. El protocolo la pide (§10), así que se nombran todas.
+featureClass:
+  firstorder:
+    - Energy
+    - TotalEnergy
+    - Entropy
+    - Minimum
+    - 10Percentile
+    - 90Percentile
+    - Maximum
+    - Mean
+    - Median
+    - InterquartileRange
+    - Range
+    - MeanAbsoluteDeviation
+    - RobustMeanAbsoluteDeviation
+    - RootMeanSquared
+    - StandardDeviation
+    - Skewness
+    - Kurtosis
+    - Variance
+    - Uniformity
+  shape: []      # forma 3D sobre la máscara (no depende de la discretización)
+  glcm: []       # matriz de co-ocurrencia de niveles de gris
+  glrlm: []      # matriz de longitud de series (runs)
+  glszm: []      # matriz de tamaño de zonas
+
+# --- Ajustes generales ----------------------------------------------------------------------
+setting:
+  # Etiqueta de la lesión en la máscara (las máscaras del pipeline son 0 = fondo, 1 = lesión).
+  label: 1
+
+  # Remuestreo isotrópico a 1 × 1 × 1 mm (protocolo §9: «evaluar 1 × 1 × 1 mm como configuración
+  # piloto»). Hace comparables las texturas entre TC con distinto grosor de corte.
+  resampledPixelSpacing: [1, 1, 1]
+
+  # Interpolador de la IMAGEN al remuestrear.
+  #   sitkLinear  → lineal (lo que propone el protocolo §9). Por defecto en este estudio.
+  #   sitkBSpline → B-spline (el valor por defecto de pyRadiomics); más suave, pero puede dar
+  #                 valores fuera del rango original cerca de bordes con mucho contraste.
+  # La MÁSCARA siempre se remuestrea con vecino más próximo (sitkNearestNeighbor): pyRadiomics lo
+  # hace así de forma fija (imageoperations.resampleImage), no hace falta configurarlo.
+  interpolator: sitkLinear
+
+  # Margen (en vóxeles) alrededor de la lesión que se remuestrea. 5 es el valor por defecto.
+  padDistance: 5
+
+  # Recortar imagen y máscara a la caja de la lesión ANTES de remuestrear: ahorra memoria y tiempo
+  # sin cambiar el resultado (el remuestreo ya se limita a esa caja).
+  preCrop: true
+
+  # Discretización con ANCHURA FIJA de intervalo (fixed bin width), en UH.
+  # Por defecto 25 UH; se puede pasar a 10 UH con run_pipeline.py --binwidth 10.
+  # Nota: el protocolo v0 (§9) pone como ejemplo 10 UH «sujeta a evaluación piloto».
+  # Afecta a Entropy, Uniformity y a todas las texturas (GLCM, GLRLM, GLSZM), no a la forma ni
+  # a la media, percentiles, asimetría o curtosis (que usan los valores sin discretizar).
+  binWidth: 25
+
+  # Sin normalización ni recorte de valores atípicos: se trabaja en UH originales (§9).
+  normalize: false
+  removeOutliers: null
+
+  # Sin re-segmentación por rango de UH (no se quitan vóxeles de la máscara por su densidad).
+  resegmentRange: null
+
+  # Extracción 3D, no corte a corte (protocolo §4 y §9: dimensionalidad 3D).
+  force2D: false
+
+  # La lesión tiene que tener extensión en las 3 dimensiones; si no, pyRadiomics no la extrae.
+  minimumROIDimensions: 3
+
+  # Desplazamiento de UH para Energy, TotalEnergy y RootMeanSquared. 0 = como IBSI (sin
+  # corrección de valores negativos). Las características prioritarias no dependen de él.
+  voxelArrayShift: 0
+
+  # Tolerancia para considerar que imagen y máscara tienen la misma geometría (mm y cosenos).
+  # 01_convertir.py ya garantiza la misma rejilla; esto solo absorbe errores de redondeo.
+  geometryTolerance: 0.0001
+
+  # Información de diagnóstico (versiones, tamaño de la máscara…) en la salida de pyRadiomics.
+  # 02_extraer.py guarda las versiones aparte y quita estas columnas de features.csv.
+  additionalInfo: true
+
+# --- Ajustes por clase -----------------------------------------------------------------------
+# GLCM: distancia 1 (vecinos inmediatos, 13 direcciones en 3D), matriz simétrica (como IBSI).
+# Cada característica de GLCM y GLRLM se calcula por dirección y luego se promedia.
+# GLSZM: zonas conectadas en 26-vecindad, una sola matriz 3D.
+  distances: [1]
+  symmetricalGLCM: true

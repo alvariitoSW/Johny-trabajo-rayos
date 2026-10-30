@@ -17,16 +17,20 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 - **Lo que dijiste**: «el fin es obtener y analizar los datos descritos en el protocolo de estudio».
 - **Cómo lo entiendo**: tipo `informe`. Una página para ti y tu tutor con cada hueco del protocolo, 2-3 opciones con
   su fuente y lo que cambia cada una. No decide nada: eliges tú. Los huecos (leídos en el protocolo):
-  1. **Programa**: LIFEx **o** la opción B (3D Slicer + SlicerRadiomics + jamovi). El título, §3, §4, §8, §9 y §11
-     mezclan los dos; cambian los nombres y las fórmulas de las características (§10).
-  2. **Grosor de corte** (§7: vacío) y **matriz** (§7: «512 × 512???»).
-  3. **Un solo equipo de TC** o varios (§7: «???»).
+  1. ~~**Programa**~~: **decidido por el usuario el 30/10**: 3D Slicer + pyRadiomics. Falta pasarlo al protocolo
+     (el título, §3, §4, §8, §9 y §11 aún nombran LIFEx).
+  2. **Grosor de corte** (§7: vacío) y **matriz** (§7: «512 × 512???»). El pipeline ya los registra por caso.
+  3. **Un solo equipo de TC** o varios (§7: «???»). `qc_heterogeneidad_tecnica.csv` dirá cuántos hay.
   4. **Contraste** (§7: «Verificar marca»).
-  5. **Erosión del contorno** (§8: está en forma de pregunta).
-  6. **Matriz de correlaciones de Spearman** (§11.2: en forma de pregunta).
-  7. **Remuestreo y discretización** (§9: «evaluar», «sujeta a evaluación piloto»): ¿quién decide tras el piloto y
-     con qué criterio?
+  5. **Erosión del contorno** (§8: está en forma de pregunta). Hoy: sin erosión.
+  6. ~~**Matriz de Spearman**~~: **decidido por el usuario el 30/10**: sí, exploratoria. Falta pasarlo al protocolo.
+  7. **Remuestreo y discretización** (§9): el usuario fijó 1 × 1 × 1 mm y binWidth 25 UH por defecto (10 como
+     opción). **El protocolo v0 pone 10 UH como ejemplo**: hay que alinear protocolo y configuración, y decidir
+     con qué criterio se elige tras el piloto.
   8. **Necrosis visual** (§6, §10): ¿sí/no o escala?
+  9. **«Homogeneity» del GLCM** (§10): pyRadiomics tiene dos (Idm = «Homogeneity 2», la elegida; Id =
+     «Homogeneity 1»). ¿Cuál es la principal? (`docs/diccionario_variables.md`).
+  10. **Interpolación de la imagen**: §9 dice lineal; el usuario dijo «BSpline o lineal». Hoy: lineal.
 - **Depende de**: nada.
 - **Tamaño**: pequeña (una sesión).
 - **Dudas**: ninguna para apuntarla; las dudas son el propio informe.
@@ -39,13 +43,11 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
   `autonomo/ideas/webs-radiologia.md` (RECIST 1.1, anatomía segmentaria, protocolos de contraste).
 - **Depende de**: nada. **Tamaño**: pequeña.
 
-### B-003 · Diccionario de variables · apuntado 2026-10-30
-- **Cómo lo entiendo**: tipo `documento`. Una tabla con cada variable de §10: nombre, definición, unidad, tipo,
-  valores posibles, origen (historia clínica, cabecera DICOM, segmentación, programa) y, en las radiómicas, nombre
-  exacto en el programa elegido, configuración y código IBSI. En `analisis/config/diccionario.csv` + una versión
-  legible en el móvil.
-- **Depende de**: B-001 (programa) y B-002 (IBSI). **Tamaño**: mediana.
-- **Lo que NO quiero (supongo)**: variables que el protocolo no pide; equivalencias entre programas sin fórmula.
+### B-003 · Diccionario de variables · apuntado 2026-10-30 · **parte radiómica hecha el 30/10**
+- **Hecho** (pedido directo del usuario): `docs/diccionario_variables.md`, con las 19 características prioritarias
+  (nombre exacto en pyRadiomics, definición, unidad, configuración, IBSI y desviaciones conocidas).
+- **Falta**: las variables clínicas y técnicas de §10 (edad, sexo, primario, tratamiento, segmento, necrosis…) y
+  **verificar los códigos IBSI** marcados (v) en el documento IBSI.
 
 ### B-004 · Cuaderno de recogida de datos y códigos de estudio · apuntado 2026-10-30
 - **Cómo lo entiendo**: tipo `documento`. Plantilla **vacía** (CSV y hoja para jamovi/SPSS) con las variables
@@ -54,20 +56,15 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
   La tabla código ↔ paciente se crea solo en el hospital.
 - **Depende de**: B-003. **Tamaño**: pequeña-mediana.
 
-### B-005 · Procedimiento de segmentación, anonimización y extracción · apuntado 2026-10-30
-- **Cómo lo entiendo**: tipo `documento`. Paso a paso para el ordenador del hospital: exportar la serie portal,
-  comprobar que no quedan identificadores en las cabeceras DICOM (§13), segmentar en 3D (§8, los 7 pasos), guardar la
-  máscara, y extraer con la configuración fija (§9) en un archivo (`analisis/config/`). Con capturas de pantalla
-  hechas con datos públicos o simulados, nunca de pacientes.
-- **Depende de**: B-001 (programa). **Tamaño**: mediana.
+### B-005 · Procedimiento de segmentación, anonimización y extracción · apuntado 2026-10-30 · **en parte hecho el 30/10**
+- **Hecho**: conversión, comprobación de geometría y anonimización (`src/01_convertir.py`), extracción con la
+  configuración fija (`config/params.yaml`, `src/02_extraer.py`) e instrucciones de uso en el `README.md`.
+- **Falta**: el paso a paso de la **segmentación en 3D Slicer** (§8, los 7 pasos), con capturas hechas con casos
+  públicos o sintéticos, nunca de pacientes.
 
-### B-006 · Scripts del análisis con pruebas · apuntado 2026-10-30
-- **Cómo lo entiendo**: tipo `script`. Lee el CSV exportado y saca: descriptiva de la muestra (§11.1), perfil
-  radiómico por característica (§11.2) e ICC de acuerdo absoluto con IC 95 % y Dice (§11.3). Cada cálculo probado con
-  datos simulados de resultado conocido. Sale una tabla y gráficos agregados.
-- **Depende de**: B-001 (Python, jamovi o SPSS: si eliges solo jamovi/SPSS, esto se convierte en una guía de clics) y
-  B-003. **Tamaño**: mediana.
-- **Dudas**: ¿puedo usar librerías de Python (numpy, pandas, scipy, matplotlib) o solo la biblioteca estándar?
+### B-006 · Scripts del análisis con pruebas · **hecho el 30/10** (pedido directo del usuario)
+- Pasos 3-6 del pipeline (`src/03_qc.py` … `src/06_informe.py`) con 12 pruebas sobre datos sintéticos
+  (`tests/`). Falta la descripción de la **muestra clínica** (§11.1), que depende de B-004.
 
 ### B-007 · Selección al azar del 20-30 % para el segundo observador · apuntado 2026-10-30
 - **Cómo lo entiendo**: tipo `script`. Un script con semilla fija que, a partir de la lista de códigos, elige el
@@ -82,7 +79,8 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 
 ## 3. Esperando algo tuyo
 
-- **Tu visto bueno** a B-001…B-007 (o el orden que prefieras).
+- **Tu visto bueno** a B-001, B-002, B-004, B-007 y lo que falta de B-003 y B-005.
+- **Probar la instalación en el PC del hospital** (README, «Instalación»): no se ha probado en Windows.
 - **Quién es quién**: quién segmenta (observador 1 y 2) y qué radiólogo revisa (§8). Solo los papeles, sin nombres en
   el repositorio si prefieres.
 - **Comité de Ética** (§13): cuándo se presenta; el protocolo v0 aún tiene huecos (B-001).
@@ -100,12 +98,15 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
   bajarla desde otro sitio.
 - **Segmentación semiautomática del hígado con TotalSegmentator** dentro de 3D Slicer, para ahorrar tiempo en la
   segmentación (idea sacada de cómo hace NavRad sus contornos; `autonomo/ideas/ingenieria-inversa/navrad.md`). Solo
-  si eliges la opción B; la metástasis se seguiría segmentando a mano o semiautomática como dice §8. Necesita
+  con 3D Slicer (ya elegido); la metástasis se seguiría segmentando a mano o semiautomática como dice §8. Necesita
   comprobar su licencia y que corre en el ordenador del hospital.
 - **Tiempo de segmentación** (§10 lo pide como variable): cronometrarlo desde el principio en el cuaderno, porque
   responde al objetivo secundario 4 (factibilidad).
 
 ## 6. Hecho esta semana
 
+- 2026-10-30 · **Pipeline de radiómica** (pedido directo del usuario): conversión y anonimización, extracción con
+  pyRadiomics 3.1.0, control de calidad, reproducibilidad (Dice, HD95, ICC), descriptivo, informe PDF para el móvil,
+  diccionario de variables, generador de datos sintéticos y 12 pruebas. Informe de ejemplo en `examples/`.
 - 2026-10-30 · Montado el método de trabajo de fiebres-neutropenias en este repositorio, con el protocolo v0 y las
   webs de radiología como base.

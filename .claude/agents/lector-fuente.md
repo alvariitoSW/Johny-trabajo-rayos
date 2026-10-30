@@ -18,7 +18,7 @@ tienes cargado.
   corrijas ni los rellenes).
 - Lo que no pudiste leer (páginas que no se abrieron, webs bloqueadas), en una sección «Huecos». Nunca lo omitas.
 
-**No puedes:** abrir lo que ya se construyó en `analisis/` ni el diccionario: tu extracto tiene que ser
+**No puedes:** abrir lo que ya se construyó en `src/`, `config/` ni el diccionario: tu extracto tiene que ser
 independiente. Lee los PDF largos en lotes de 6-8 páginas y comprueba que cada lote devolvió todas sus páginas.
 **Nunca** abras ni copies datos de pacientes.
 
