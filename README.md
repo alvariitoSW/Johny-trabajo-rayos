@@ -65,6 +65,10 @@ de protección de datos (protocolo §13).
 
 ## Instalación en un Windows del hospital, sin permisos de administrador
 
+**La forma corta** (probada en Windows por GitHub Actions): instala Python 3.11 (paso 1), descarga el ZIP del proyecto
+y haz doble clic en **`instalar.bat`**. Crea el entorno, instala las librerías y pyRadiomics ya compilado (carpeta
+`ruedas/`, sin compilador) y comprueba que funciona. Después, `lanzar_app.bat`. Lo de abajo es la forma larga.
+
 Probado con **Python 3.11** (en Linux; la instalación en Windows **no se ha probado**). Python 3.10 y 3.12 deberían
 funcionar con `requirements.txt`, pero `requirements-lock.txt` es la lista exacta de 3.11.
 

@@ -33,10 +33,10 @@ jobs:
       - name: Dependencias (binarios de PyPI)
         run: python -m pip install -r requirements.txt
       - name: Compilar pyRadiomics (rueda para Windows)
-        run: python -m pip wheel -r requirements-pyradiomics.txt --no-deps -w ruedas
+        run: python -m pip wheel -r requirements-pyradiomics.txt --no-deps -w compiladas
       - name: Instalar la rueda, como en el hospital
         shell: pwsh
-        run: python -m pip install (Get-ChildItem ruedas\pyradiomics-*.whl).FullName --no-deps
+        run: python -m pip install (Get-ChildItem compiladas\pyradiomics-*.whl).FullName --no-deps
       - name: Comprobar la instalación
         run: python -c "import radiomics; from radiomics import cMatrices; print(radiomics.__version__)"
       - name: Pruebas del pipeline (datos sintéticos)
@@ -46,6 +46,33 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pyradiomics-windows-python${{ matrix.python }}
-          path: ruedas/*.whl
+          path: compiladas/*.whl
           if-no-files-found: warn
           retention-days: 90
+
+  # Guarda las ruedas compiladas dentro del repositorio (carpeta ruedas/), para que vayan en el ZIP de GitHub y el
+  # PC del hospital las instale sin compilador (instalar.bat). Solo añade una rueda si aún no está.
+  guardar-ruedas:
+    needs: windows
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pyradiomics-windows-*
+          path: nuevas
+          merge-multiple: true
+      - name: Añadir las ruedas nuevas a ruedas/
+        run: |
+          mkdir -p ruedas
+          for f in nuevas/*.whl; do b=$(basename "$f"); [ -f "ruedas/$b" ] || cp "$f" ruedas/; done
+          git add ruedas
+          if git diff --cached --quiet; then echo "Sin ruedas nuevas"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Ruedas de pyRadiomics 3.1.0 para Windows, compiladas y probadas por GitHub Actions"
+          git pull --rebase origin main
+          git push origin HEAD:main

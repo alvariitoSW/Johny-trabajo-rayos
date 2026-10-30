@@ -36,3 +36,6 @@ __pycache__/
 
 # Copias de trabajo temporales de los agentes (no se suben)
 .claude/worktrees/
+
+# Carpeta temporal donde se compila pyRadiomics (las ruedas buenas van a ruedas/)
+compiladas/
