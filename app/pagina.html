@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radiómica · app local</title>
+<style>
+body{font:16px/1.4 system-ui,sans-serif;margin:0 auto;padding:12px;max-width:760px;color:#222}
+h1{font-size:1.3em} h2{font-size:1.1em;margin:0 0 8px}
+section{border:1px solid #ccc;border-radius:8px;padding:12px;margin:12px 0}
+.aviso{background:#fff3cd;border-color:#e0c060}
+label{display:block;margin:8px 0 2px;font-weight:600}
+input,select,button{font:inherit;padding:8px;width:100%;box-sizing:border-box}
+button{background:#1b5e9e;color:#fff;border:0;border-radius:6px;margin-top:10px}
+button:disabled{background:#999}
+.ok{color:#146c2e}.mal{color:#b00020}.peq{font-size:.85em;color:#555}
+pre{background:#111;color:#ddd;padding:8px;height:240px;overflow:auto;white-space:pre-wrap;font-size:.8em}
+.caso{border-top:1px solid #ddd;padding:8px 0}
+code{word-break:break-all}
+a{color:#1b5e9e}
+</style></head><body>
+<h1>Radiómica · app local</h1>
+
+<section class="aviso"><b>Solo en el PC del hospital. Nada sale de este ordenador.</b></section>
+
+<section><h2>Inicio</h2>
+<div>Datos: <code id="datos">…</code></div>
+<div>Resultados: <code id="resultados">…</code></div>
+<div>pyRadiomics: <span id="pyr">…</span></div></section>
+
+<section><h2>Nuevo caso</h2>
+<p class="peq">Escribe rutas de este ordenador. La app copia; no borra nada tuyo.</p>
+<label for="id">Código del caso (p. ej. RMH-001)</label><input id="id" autocomplete="off">
+<label for="img">Carpeta DICOM de la serie portal</label><input id="img" autocomplete="off">
+<label for="m">Máscara (.seg.nrrd, .nrrd o .dcm)</label><input id="m" autocomplete="off">
+<p class="peq">Con dos observadores, deja la máscara vacía y rellena:</p>
+<label for="m1">Máscara observador 1</label><input id="m1" autocomplete="off">
+<label for="m2">Máscara observador 2</label><input id="m2" autocomplete="off">
+<button id="bcaso">Preparar caso</button><p id="rcaso"></p></section>
+
+<section><h2>Casos</h2><div id="casos" class="peq">Sin casos.</div>
+<p id="rdec"></p></section>
+
+<section><h2>Ejecutar</h2>
+<label for="bw">binWidth (UH)</label>
+<select id="bw"><option value="">Por defecto (25)</option><option value="25">25</option><option value="10">10</option></select>
+<button id="brun">Ejecutar el pipeline</button>
+<p id="rrun"></p><pre id="salida"></pre></section>
+
+<section><h2>Informe</h2><div id="informe" class="peq">Aún no hay informe.</div></section>
+
+<script>
+const T=new URLSearchParams(location.search).get('t')||'';
+const $=i=>document.getElementById(i);
+async function api(ruta,cuerpo){
+  const o={headers:{'X-Token':T}};
+  if(cuerpo!==undefined){o.method='POST';o.body=JSON.stringify(cuerpo);}
+  const r=await fetch(ruta,o);
+  return {ok:r.ok,d:await r.json().catch(()=>({error:'Respuesta no válida.'}))};
+}
+function msg(el,r){el.className=r.ok?'ok':'mal';el.textContent=r.d.mensaje||r.d.error||'';}
+function span(txt,clase){const s=document.createElement('span');s.textContent=txt;if(clase)s.className=clase;return s;}
+async function estado(){
+  const {d}=await api('/api/estado');
+  $('datos').textContent=d.datos;$('resultados').textContent=d.resultados;
+  $('pyr').textContent=d.pyradiomics?'disponible':'NO disponible (activa el entorno)';
+  $('pyr').className=d.pyradiomics?'ok':'mal';
+  const c=$('casos');
+  if(!d.casos.length){c.textContent='Sin casos.';}else{
+    c.textContent='';
+    d.casos.forEach(k=>{
+      const div=document.createElement('div');div.className='caso';
+      const b=document.createElement('b');b.textContent=k.id;div.append(b,' · '+k.estado);
+      if(k.alertas!==null&&k.alertas!==undefined){div.append(document.createElement('br'),
+        span('Alertas: '+k.alertas,k.alertas==='ninguna'?'ok':'mal'));}
+      const sel=document.createElement('select');
+      ['','incluir','excluir','revisar'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v||'(sin decidir)';sel.append(o);});
+      sel.value=k.decision;
+      const mo=document.createElement('input');mo.placeholder='Motivo corto';mo.value=k.motivo;mo.maxLength=200;
+      const bt=document.createElement('button');bt.textContent='Guardar decisión';
+      bt.onclick=async()=>{if(!sel.value){$('rdec').className='mal';$('rdec').textContent='Elige incluir, excluir o revisar.';return;}
+        msg($('rdec'),await api('/api/decision',{id:k.id,decision:sel.value,motivo:mo.value}));};
+      div.append(sel,mo,bt);c.append(div);
+    });
+  }
+  const inf=$('informe');inf.textContent='';
+  if(d.informe){const a=document.createElement('a');a.href='/informe.pdf?t='+encodeURIComponent(T);a.target='_blank';a.textContent='Abrir informe.pdf';inf.append(a);}
+  else inf.textContent='Aún no hay informe.';
+  d.figuras.forEach(f=>{inf.append(document.createElement('br'));const a=document.createElement('a');
+    a.href='/figuras/'+encodeURIComponent(f)+'?t='+encodeURIComponent(T);a.target='_blank';a.textContent=f;inf.append(a);});
+}
+$('bcaso').onclick=async()=>{
+  const r=await api('/api/caso',{id:$('id').value,imagen:$('img').value,mascara:$('m').value,mascara1:$('m1').value,mascara2:$('m2').value});
+  msg($('rcaso'),r);estado();
+};
+let desde=0,sondeo=null;
+async function sondear(){
+  const {d}=await api('/api/salida?desde='+desde);
+  if(d.lineas&&d.lineas.length){const p=$('salida');p.textContent+=d.lineas.join('\n')+'\n';p.scrollTop=p.scrollHeight;desde=d.total;}
+  $('brun').disabled=d.en_marcha;
+  if(!d.en_marcha&&sondeo){clearInterval(sondeo);sondeo=null;
+    $('rrun').className=d.codigo===0?'ok':'mal';
+    $('rrun').textContent=d.codigo===0?'Terminó bien.':'Terminó con error (código '+d.codigo+').';estado();}
+}
+$('brun').onclick=async()=>{
+  const r=await api('/api/ejecutar',{binwidth:$('bw').value});msg($('rrun'),r);
+  if(r.ok){desde=0;$('salida').textContent='';$('brun').disabled=true;sondeo=setInterval(sondear,1500);}
+};
+estado();
+api('/api/salida?desde=0').then(({d})=>{if(d.en_marcha&&!sondeo){sondeo=setInterval(sondear,1500);}});
+</script></body></html>
