@@ -67,6 +67,14 @@ estudio de investigación: aquí no se construye una app, se **obtienen y analiz
    explique.
 3. **Nada interno a la vista** en los documentos para el tutor o el comité: ni códigos del plan, ni rutas, ni notas de
    trabajo.
+4. **La ley de explicar en llano** (Consejo del 30/10/2026, aprobada por el usuario: «aplica todo»). Toda cifra que
+   llegue al usuario (tabla, figura, informe) va con una frase en llano: qué mide, en qué unidad y qué indica un valor
+   alto, tomada de `docs/guia_interpretacion.md`. La guía separa tres niveles: qué mide (de la documentación del
+   programa), qué se ve en la TC (solo con fuente radiológica citada con página) y significado clínico (no se da: el
+   estudio es descriptivo, protocolo §11.4, y las características no son biomarcadores validados). Si falta la fuente,
+   se escribe «sin fuente» y no se rellena. Cada estadístico (Dice, ICC con su IC 95 %, CV, mediana y RIC, Spearman)
+   lleva su explicación de una frase y su límite. Las características que dependen del tamaño, del binWidth o con
+   escala distinta a IBSI llevan su aviso. Nada de «válida / no válida» por un umbral de ICC (§11.3).
 
 ## 5. Trabajo y git
 
