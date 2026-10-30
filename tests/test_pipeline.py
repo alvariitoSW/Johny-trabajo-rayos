@@ -98,7 +98,9 @@ def test_qc_caza_las_trampas_y_mide_bien(ejecucion):
 def test_reproducibilidad(ejecucion):
     _, outputs, verdad, _ = ejecucion
     seg = pd.read_csv(outputs / 'reproducibilidad_segmentacion.csv')
-    assert len(seg) == sum(v['dos_observadores'] for v in verdad.values()) == 6
+    # SINT-005 (excluir propuesto) y SINT-008 (revisar sin decidir) no se analizan (asunto 2 del Consejo 30/10)
+    esperados = {i for i, v in verdad.items() if v['dos_observadores']} - {'SINT-005', 'SINT-008'}
+    assert set(seg['id']) == esperados and len(seg) >= 5
     assert seg['dice'].between(0.6, 0.99).all() and (seg['hd95_mm'] > 0).all()
     icc = pd.read_csv(outputs / 'reproducibilidad_icc.csv')
     assert len(icc) == len(pd.read_csv(outputs / 'features.csv').filter(like='original_').columns)

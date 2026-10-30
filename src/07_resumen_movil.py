@@ -12,7 +12,7 @@ Reglas de protección (protocolo §13; REGLAS §2):
   · La página no usa scripts ni recursos externos.
   · Antes de sacarla del PC del hospital hay que pedir permiso al delegado de protección de datos.
 
-Lee los CSV de los pasos 3 a 5 en <salida>; los que no existan, se omiten.
+Lee los CSV de los pasos 3 a 5 (también flujo_casos.csv, con la misma regla «< 5») en <salida>; los que no existan, se omiten.
 
 Uso:  python src/07_resumen_movil.py --entrada data --salida outputs
 """
@@ -33,10 +33,7 @@ MINIMO = 5
 AVISO = ('Resumen agregado. Antes de sacarlo de este PC, pide permiso al delegado de protección de datos '
          '(protocolo §13).')
 DEMASIADO_PEQUENA = 'muestra demasiado pequeña para resumir'
-# Tipos de alerta del paso 3 (03_qc.py): prefijo del texto → nombre en llano.
-TIPOS_ALERTA = [('máscara vacía', 'máscara vacía'), ('valores de máscara', 'valores de máscara no válidos'),
-                ('geometría', 'geometría distinta'), ('componentes', 'varios componentes'),
-                ('diámetro axial <', 'lesión menor de 10 mm')]
+TIPOS_ALERTA = comun.TIPOS_ALERTA  # tipos de alerta del paso 3
 
 
 def recuento(n: int) -> str:
@@ -58,8 +55,17 @@ def tabla(filas: list[list[str]], cabecera: list[str]) -> str:
     return f'<table><tr>{c}</tr>{f}</table>'
 
 
-def seccion_casos(qc: pd.DataFrame) -> tuple[str, int]:
+def seccion_flujo(flujo: pd.DataFrame, n: int) -> tuple[str, int]:
+    """Flujo de casos del paso 3: cada recuento de 1 a 4 sale como «< 5». Sin códigos de caso."""
+    filas = [[str(f['concepto']), recuento(int(f['casos']))] for _, f in flujo.iterrows()]
+    return ('<h2>Flujo de casos</h2><p>Un caso por paciente. Los pendientes de revisar no se analizan hasta que '
+            'el radiólogo decida.</p>' + tabla(filas, ['Qué', 'Casos']), n)
+
+
+def seccion_casos(qc: pd.DataFrame, flujo: pd.DataFrame | None = None) -> tuple[str, int]:
     n = len(qc)
+    if flujo is not None:
+        return seccion_flujo(flujo, n)
     con = qc[qc['alertas'] != 'ninguna']
     filas = [['Casos evaluados', recuento(n)], ['Con alguna alerta', recuento(len(con))]]
     for prefijo, nombre in TIPOS_ALERTA:
@@ -106,10 +112,11 @@ def seccion_caracteristicas(desc: pd.DataFrame | None, icc: pd.DataFrame | None,
 def construir(entrada: Path, salida: Path, prioritarias: Path) -> str:
     qc, seg = leer(salida / 'qc_report.csv'), leer(salida / 'reproducibilidad_segmentacion.csv')
     icc, desc = leer(salida / 'reproducibilidad_icc.csv'), leer(salida / 'descriptivo.csv')
+    flujo = leer(salida / 'flujo_casos.csv')
     meta = comun.leer_json(salida / 'extraccion_meta.json') if (salida / 'extraccion_meta.json').exists() else {}
     partes, total = [], None
     if qc is not None:
-        texto, total = seccion_casos(qc)
+        texto, total = seccion_casos(qc, flujo)
         partes.append(texto)
     if total is not None and total < MINIMO:
         partes.append(f'<p><b>{DEMASIADO_PEQUENA.capitalize()}.</b></p>')

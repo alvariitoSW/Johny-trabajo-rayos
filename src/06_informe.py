@@ -1,7 +1,7 @@
 """Paso 6 · Informe PDF autocontenido (tablas y figuras de los pasos 3, 4 y 5), pensado para leerse en el móvil:
 páginas estrechas y altas, letra grande y tablas de pocas columnas que se parten entre páginas.
 
-Entrada:  <salida>/qc_report.csv, qc_heterogeneidad_tecnica.csv, reproducibilidad_*.csv, descriptivo.csv,
+Entrada:  <salida>/qc_report.csv, flujo_casos.csv, qc_heterogeneidad_tecnica.csv, reproducibilidad_*.csv, descriptivo.csv,
           spearman.csv, figuras/*.png y extraccion_meta.json
 Salida:   <salida>/informe.pdf
 
@@ -78,19 +78,38 @@ class Informe:
                 y -= 0.03
             return fig, y - 0.02
 
-        fig, y = nueva()
+        def lineas_de(parrafo):
+            sub = parrafo.startswith('## ')
+            return sub, textwrap.wrap(parrafo[3:] if sub else parrafo, 40 if sub else 46) or ['']
+
+        def alto(parrafo):
+            sub, lineas = lineas_de(parrafo)
+            return 0.021 * len(lineas) + (0.006 if sub else 0.012)
+
+        # Un subtítulo y sus párrafos hasta el siguiente subtítulo forman una ficha: no se parte entre páginas
+        # (salvo que una sola ficha no quepa en una página).
+        grupos = []
         for parrafo in parrafos:
-            subtitulo = parrafo.startswith('## ')
-            lineas = textwrap.wrap(parrafo[3:] if subtitulo else parrafo, 40 if subtitulo else 46) or ['']
-            reserva = 0.1 if subtitulo else 0      # que un subtítulo no quede solo al pie de la página
-            if y - 0.021 * len(lineas) - reserva < 0.04:
+            if parrafo.startswith('## ') or not grupos:
+                grupos.append([parrafo])
+            else:
+                grupos[-1].append(parrafo)
+        fig, y = nueva()
+        for grupo in grupos:
+            if y < 0.88 and y - sum(alto(q) for q in grupo) < 0.04 and sum(alto(q) for q in grupo) < 0.8:
                 self.cerrar_pagina(fig)
                 fig, y = nueva(' (sigue)')
-            for linea in lineas:
-                fig.text(0.07, y, linea, fontsize=9.6 if subtitulo else 8.6, va='top',
-                         weight='bold' if subtitulo else 'normal', color=AZUL if subtitulo else 'black')
-                y -= 0.021
-            y -= 0.006 if subtitulo else 0.012
+            for parrafo in grupo:
+                subtitulo, lineas = lineas_de(parrafo)
+                reserva = 0.1 if subtitulo else 0      # que un subtítulo no quede solo al pie de la página
+                if y - 0.021 * len(lineas) - reserva < 0.04:
+                    self.cerrar_pagina(fig)
+                    fig, y = nueva(' (sigue)')
+                for linea in lineas:
+                    fig.text(0.07, y, linea, fontsize=9.6 if subtitulo else 8.6, va='top',
+                             weight='bold' if subtitulo else 'normal', color=AZUL if subtitulo else 'black')
+                    y -= 0.021
+                y -= 0.006 if subtitulo else 0.012
         self.cerrar_pagina(fig)
 
     def tabla(self, titulo: str, cabecera: list[str], filas: list[list[str]], anchos: list[int], nota: str = ''):
@@ -268,9 +287,62 @@ def lectura_qc(qc: pd.DataFrame) -> list[str]:
     if len(alertas):
         frases.append(f'{len(alertas)} de {n} lesiones tienen alguna alerta: '
                       + '; '.join(f'{f["id"]} ({f["alertas"]})' for _, f in alertas.iterrows())
-                      + '. Una alerta no excluye el caso: señala qué mirar en la imagen.')
+                      + '. Una alerta señala qué mirar en la imagen; la decisión de incluir o excluir es del radiólogo '
+                      '(ver «Flujo de casos»).')
     else:
         frases.append(f'Ninguna de las {n} lesiones tiene alertas de calidad.')
+    return frases
+
+
+def lectura_flujo(flujo: pd.DataFrame) -> list[str]:
+    """«Qué dicen tus datos» del flujo de casos, con los recuentos tal cual (el PDF no sale del hospital)."""
+    if flujo.empty:
+        return []
+    c = dict(zip(flujo['concepto'], flujo['casos'].astype(int)))
+    frases = [f'Se evaluaron {c["Casos evaluados"]} lesiones; {c["Con alguna alerta"]} tienen alguna alerta. '
+              f'Se analizan {c["Analizados"]}, {c["Con dos observadores analizados"]} de ellas con dos observadores.']
+    motivos = [f'{k[len("· motivo: "):]} ({v})' for k, v in c.items() if k.startswith('· motivo: ')]
+    if c['Excluidos']:
+        frases.append(f'Excluidas: {c["Excluidos"]}, por ' + '; '.join(motivos) + '. Cada exclusión se cuenta aquí '
+                      'y se puede cambiar en decisiones_casos.csv.')
+    else:
+        frases.append('No hay ninguna lesión excluida.')
+    if c['Pendientes de revisar']:
+        frases.append(f'{c["Pendientes de revisar"]} lesiones esperan la decisión del radiólogo (incluir o excluir): '
+                      'mientras tanto NO se analizan. Excluir sin mirar la imagen sesgaría la muestra hacia lesiones '
+                      'fáciles; por eso el programa propone y el radiólogo decide.')
+    else:
+        frases.append('Ninguna lesión espera decisión.')
+    return frases
+
+
+NOMBRES_TECNICOS = {'fabricante': 'Fabricante', 'modelo': 'Modelo', 'kvp': 'kVp', 'kernel': 'Kernel',
+                    'grosor_corte_mm': 'Grosor de corte (mm)', 'pixel_spacing_mm': 'Tamaño de píxel (mm)',
+                    'ma': 'mA'}
+
+
+def lectura_icc(icc: pd.DataFrame, resumen: dict | None = None, nombres: dict | None = None) -> list[str]:
+    """«Qué dicen tus datos» del ICC, solo con las prioritarias. Etiquetas, nunca filtros (protocolo §11.3)."""
+    if icc.empty:
+        return []
+    nombres = nombres or {}
+    pri = icc[icc['prioritaria'].astype(bool)]
+    ok = pri[pri['ic95_inf'].notna() & pri['ic95_sup'].notna()]
+    buenas = ok[ok['ic95_inf'] >= 0.75]
+    cautela = ok[ok['ic95_inf'] < 0.5]
+    frases = [f'De {len(pri)} características prioritarias, {len(ok)} tienen ICC calculable. En {len(buenas)} el '
+              'intervalo entero (IC 95 %) cae en «buena» o «excelente» (Koo y Li 2016: desde 0,75).',
+              f'En {len(cautela)} el límite inferior del IC está por debajo de 0,5: no se descarta una fiabilidad '
+              'pobre, así que se leen con cautela. No se quita ninguna: se informan todas (protocolo §11.3).']
+    if len(ok):
+        f = ok.loc[(ok['ic95_sup'] - ok['ic95_inf']).idxmax()]
+        frases.append(f'El IC más ancho es el de {nombres.get(f["caracteristica"], f["caracteristica"])}: de '
+                      f'{num(f["ic95_inf"], 2)} a {num(f["ic95_sup"], 2)} (ICC {num(f["icc"], 2)}). Cuanto más ancho el '
+                      'intervalo, menos se sabe de la fiabilidad real.')
+    if resumen and resumen.get('aviso'):
+        frases.append('Aviso: ' + resumen['aviso'])
+    frases.append('El ICC depende también de lo distintas que sean las lesiones entre sí. Son cifras de esta '
+                  'muestra, sin juicio clínico.')
     return frases
 
 
@@ -363,6 +435,7 @@ def main(argv=None) -> int:
     qc, het = leer(s / 'qc_report.csv'), leer(s / 'qc_heterogeneidad_tecnica.csv')
     seg, icc = leer(s / 'reproducibilidad_segmentacion.csv'), leer(s / 'reproducibilidad_icc.csv')
     desc = leer(s / 'descriptivo.csv')
+    flujo = leer(s / 'flujo_casos.csv')
     datos = leer(s / 'features.csv')
     if 'error' in datos:
         datos = datos[datos['error'].isna() | (datos['error'] == '')]
@@ -404,10 +477,24 @@ def main(argv=None) -> int:
                   'Ø 3D: mayor distancia entre centros de vóxel del borde. '
                   f'Lesiones por debajo de 10 mm: {int(qc[col_menor].sum()) if col_menor else 0}.')
         inf.texto('1 · Qué dicen tus datos', lectura_qc(qc))
+    if not flujo.empty:
+        c = dict(zip(flujo['concepto'], flujo['casos'].astype(int)))
+        inf.tabla('Flujo de casos', ['Qué', 'Casos'], [[f['concepto'], int(f['casos'])] for _, f in flujo.iterrows()],
+                  [30, 6], 'Un caso por paciente. El programa propone («< 10 mm» → excluir, otra alerta → revisar) y '
+                  'el radiólogo decide. Los pendientes de revisar no se analizan.')
+        if 'decision' in qc:
+            raros = qc[qc['alertas'] != 'ninguna']
+            if len(raros):
+                inf.tabla('Casos con alerta: decisión', ['Caso', 'Propuesta', 'Decisión'],
+                          [[f['id'], f['decision_propuesta'], f['decision'] + (' (radiólogo)' if f['decision_origen'] == 'archivo' else '')]
+                           for _, f in raros.iterrows()], [10, 9, 14],
+                          'Decisión sin «(radiólogo)»: es la propuesta del programa, aún sin confirmar.')
+        inf.texto('Flujo de casos · Qué dicen tus datos', lectura_flujo(flujo))
     if not het.empty:
         inf.tabla('2 · Homogeneidad técnica', ['Variable', 'Valor', 'n', '%'],
-                  [[f['variable'], f['valor'], f['n'], num(f['porcentaje'])] for _, f in het.iterrows()],
-                  [12, 20, 4, 6], 'Cuántas TC hay de cada equipo, tensión (kVp), filtro de reconstrucción (kernel), '
+                  [[NOMBRES_TECNICOS.get(f['variable'], f['variable']), f['valor'], f['n'], num(f['porcentaje'])]
+                   for _, f in het.iterrows()],
+                  [16, 17, 4, 6], 'Cuántas TC hay de cada equipo, tensión (kVp), filtro de reconstrucción (kernel), '
                   'grosor de corte y tamaño de píxel. Lo leído de la cabecera DICOM de cada serie.')
 
     if not seg.empty:
@@ -420,20 +507,30 @@ def main(argv=None) -> int:
                   'del borde de una segmentación respecto a la otra.')
         inf.texto('3 · Qué dicen tus datos: contornos', lectura_segmentacion(seg, qc))
     if not icc.empty:
-        # [HUECO b-009: lectura del ICC] Aquí irá «Qué dicen tus datos» del ICC, con la función de etiquetas
-        # de fiabilidad (tramos de Koo y Li leídos sobre el IC 95 %).
+        nombres = {c['columna']: c['nombre'] for c in config.get('caracteristicas', [])}
+
         def tabla_icc(titulo, t):
             nombre = lambda c: c.replace('original_', '').replace('_', ' · ', 1)  # noqa: E731
-            filas = [[nombre(f['caracteristica']), num(f['icc'], 3), f'{num(f["ic95_inf"], 2)} a {num(f["ic95_sup"], 2)}',
-                      f['nota'] if isinstance(f['nota'], str) else ''] for _, f in t.iterrows()]
-            notas = [f[3] for f in filas if f[3]]
+            filas = []
+            for _, f in t.iterrows():
+                etiqueta = f['fiabilidad_koo_li'] if 'fiabilidad_koo_li' in f else comun.fiabilidad_koo_li(f['ic95_inf'], f['ic95_sup'])
+                if f['ic95_inf'] < 0.5:
+                    etiqueta += ' *'
+                filas.append([nombre(f['caracteristica']), num(f['icc'], 3),
+                              f'{num(f["ic95_inf"], 2)} a {num(f["ic95_sup"], 2)}', etiqueta,
+                              f['nota'] if isinstance(f['nota'], str) else ''])
             nota = ('ICC(2,1): dos factores, efectos aleatorios, acuerdo absoluto, medida única (pingouin, «ICC2»), '
-                    'con IC 95 %. Se muestran todos los valores, sin umbral que declare «válida» una característica.')
-            if notas:  # columna «Nota» solo si alguna fila la usa
-                inf.tabla(titulo, ['Característica', 'ICC', 'IC 95 %', 'Nota'], filas, [22, 6, 11, 11], nota)
+                    'con IC 95 %. Fiabilidad: tramos de Koo y Li (2016) sobre el IC entero: < 0,5 pobre; 0,5-0,75 '
+                    'moderada; 0,75-0,9 buena; > 0,9 excelente. * = límite inferior < 0,5: interpretar con cautela. '
+                    'Es una etiqueta, no un filtro: se muestran todas (protocolo §11.3).')
+            if any(f[4] for f in filas):  # columna «Nota» solo si alguna fila la usa
+                inf.tabla(titulo, ['Característica', 'ICC', 'IC 95 %', 'Fiabilidad', 'Nota'], filas, [15, 5, 9, 12, 10], nota)
             else:
-                inf.tabla(titulo, ['Característica', 'ICC', 'IC 95 %'], [f[:3] for f in filas], [28, 7, 13], nota)
+                inf.tabla(titulo, ['Característica', 'ICC', 'IC 95 %', 'Fiabilidad'], [f[:4] for f in filas],
+                          [18, 6, 10, 13], nota)
         tabla_icc('3 · ICC de las prioritarias', icc[icc['prioritaria']])
+        inf.texto('3 · Qué dicen tus datos: ICC', lectura_icc(
+            icc, comun.leer_json(s / 'reproducibilidad_resumen.json'), nombres))
         tabla_icc('3 · ICC de todas las características', icc)
 
     if not desc.empty:

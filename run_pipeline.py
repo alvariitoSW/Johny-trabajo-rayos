@@ -1,5 +1,5 @@
 """Ejecuta el pipeline de radiómica en orden: conversión → extracción → control de calidad →
-reproducibilidad → descriptivo → informe PDF.
+reproducibilidad → descriptivo → informe PDF → resumen para el móvil (solo agregados).
 
 Uso (desde la carpeta del proyecto, con el entorno activado):
 
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent / 'src'
-PASOS = ['01_convertir', '02_extraer', '03_qc', '04_reproducibilidad', '05_descriptivo', '06_informe']
+PASOS = ['01_convertir', '02_extraer', '03_qc', '04_reproducibilidad', '05_descriptivo', '06_informe', '07_resumen_movil']
 
 
 def cargar(nombre: str):
@@ -37,7 +37,7 @@ def main(argv=None) -> int:
     p.add_argument('--binwidth', type=float, default=None, help='anchura de intervalo en UH (por defecto, la de params.yaml: 25)')
     p.add_argument('--params', type=Path, default=SRC.parent / 'config' / 'params.yaml')
     p.add_argument('--segmento', default='1', help='segmento a usar en el paso 1 (número, nombre o «mayor:<texto>»)')
-    p.add_argument('--desde', type=int, default=1, choices=range(1, 7), help='primer paso que se ejecuta (1-6)')
+    p.add_argument('--desde', type=int, default=1, choices=range(1, 8), help='primer paso que se ejecuta (1-7)')
     a = p.parse_args(argv)
 
     entrada, salida = ['--entrada', str(a.input)], ['--salida', str(a.output)]
@@ -49,6 +49,7 @@ def main(argv=None) -> int:
         '04_reproducibilidad': entrada + salida + ['--params', str(a.params)] + bw,
         '05_descriptivo': salida,
         '06_informe': entrada + salida,
+        '07_resumen_movil': entrada + salida,
     }
     fallos = []
     for numero, nombre in enumerate(PASOS, 1):

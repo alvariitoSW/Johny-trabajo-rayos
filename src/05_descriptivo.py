@@ -9,6 +9,8 @@ Figuras: histograma + diagrama de caja por característica y matriz de correlaci
 Entrada:  <salida>/features.csv (paso 2)
 Salida:   <salida>/descriptivo.csv, <salida>/spearman.csv y <salida>/figuras/*.png
 
+Solo se describen los casos con decision == incluir de <salida>/qc_report.csv (paso 3), si existe.
+
 Uso:  python src/05_descriptivo.py --salida outputs [--prioritarias config/features_prioritarias.yaml]
 """
 from __future__ import annotations
@@ -88,6 +90,9 @@ def main(argv=None) -> int:
     datos = pd.read_csv(a.salida / 'features.csv')
     if 'error' in datos:
         datos = datos[datos['error'].isna() | (datos['error'] == '')]
+    analizados = comun.ids_analizados(a.salida, 'paso 5')  # solo decision == incluir (None: sin paso 3)
+    if analizados is not None:
+        datos = datos[datos['id'].isin(analizados)]
     figuras = a.salida / 'figuras'
     figuras.mkdir(parents=True, exist_ok=True)
 

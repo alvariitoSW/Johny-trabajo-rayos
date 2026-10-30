@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import SimpleITK as sitk
 import yaml
 
@@ -165,3 +166,48 @@ def fiabilidad_koo_li(inf, sup) -> str:
 
     a, b = categoria(float(inf)), categoria(float(sup))
     return a if a == b else f'de {a} a {b}'
+
+
+# ------------------------------------------------------------------------- decisiones sobre los casos
+# Tipos de alerta del paso 3 (prefijo del texto → nombre en llano). Lo usan el paso 3 y el resumen para el móvil.
+TIPOS_ALERTA = [('máscara vacía', 'máscara vacía'), ('valores de máscara', 'valores de máscara no válidos'),
+                ('geometría', 'geometría distinta'), ('componentes', 'varios componentes'),
+                ('diámetro axial <', 'lesión menor de 10 mm')]
+DECISIONES = ('incluir', 'excluir', 'revisar')
+
+
+def tipos_de_alerta(alertas: str) -> str:
+    """Nombres en llano de los tipos de alerta de un caso («ninguna» → cadena vacía)."""
+    return '; '.join(nombre for prefijo, nombre in TIPOS_ALERTA if prefijo in str(alertas))
+
+
+def leer_decisiones(ruta: Path) -> dict[str, dict]:
+    """<datos>/decisiones_casos.csv (columnas exactas id,decision,motivo). Sin archivo → {}. Una decisión que no
+    sea incluir, excluir o revisar es un error: nunca se interpreta a escondidas."""
+    if not Path(ruta).exists():
+        return {}
+    t = pd.read_csv(ruta, dtype=str).fillna('')
+    if list(t.columns) != ['id', 'decision', 'motivo']:
+        raise ValueError(f'{ruta}: las columnas deben ser exactamente id,decision,motivo (hay {list(t.columns)})')
+    t['decision'] = t['decision'].str.strip().str.lower()
+    malas = t.loc[~t['decision'].isin(DECISIONES), 'decision'].unique().tolist()
+    if malas:
+        raise ValueError(f'{ruta}: decisión no válida {malas}; usa incluir, excluir o revisar')
+    return {f['id'].strip(): {'decision': f['decision'], 'motivo': f['motivo'].strip()} for _, f in t.iterrows()}
+
+
+def ids_analizados(salida: Path, paso: str = ''):
+    """Casos que se analizan en los pasos 4 y 5: decision == incluir en qc_report.csv (o, si ese archivo no lleva
+    decisión, los que no tienen alerta). Sin qc_report.csv devuelve None (sin filtro). Avisa de los que se dejan fuera."""
+    ruta = Path(salida) / 'qc_report.csv'
+    if not ruta.exists():
+        return None
+    qc = pd.read_csv(ruta)
+    ok = qc['decision'] == 'incluir' if 'decision' in qc else qc['alertas'] == 'ninguna'
+    fuera = qc[~ok]
+    if len(fuera):
+        pend = int((fuera['decision'] == 'revisar').sum()) if 'decision' in fuera else 0
+        print(f'AVISO{" (" + paso + ")" if paso else ""}: {len(fuera)} caso(s) no se analizan: '
+              f'{len(fuera) - pend} excluido(s) y {pend} pendiente(s) de revisar por el radiólogo '
+              f'(ver qc_report.csv, columna «decision»).')
+    return set(qc.loc[ok, 'id'])

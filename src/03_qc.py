@@ -12,6 +12,14 @@ Por caso (<salida>/qc_report.csv):
 Entre casos (<salida>/qc_heterogeneidad_tecnica.csv): cuántos casos hay de cada fabricante, modelo, kVp, kernel,
 grosor de corte y pixel spacing, y el mA (mediana y rango).
 
+Decisiones (asunto 2 del Consejo del 30/10/2026: revisar y contar, nunca excluir en silencio):
+  · decision_propuesta: «excluir» si la única alerta es el diámetro axial < 10 mm (criterio de inclusión, §5);
+    «revisar» con cualquier otra alerta; «incluir» sin alertas.
+  · decision: la de <entrada>/decisiones_casos.csv (columnas id,decision,motivo; la escribe la app local o el
+    radiólogo) si existe para ese caso; si no, la propuesta. Un «revisar» sin decidir NO se analiza (pasos 4 y 5).
+  · <salida>/flujo_casos.csv: recuentos agregados (evaluados, con alerta, excluidos por motivo, pendientes,
+    analizados, con dos observadores analizados).
+
 Uso:  python src/03_qc.py --entrada data --salida outputs [--diametro-minimo 10]
 """
 from __future__ import annotations
@@ -118,6 +126,39 @@ def qc_caso(caso: Path, minimo_mm: float) -> dict:
     }
 
 
+def proponer(alertas: str) -> str:
+    """Propuesta del programa. La decisión final es del radiólogo."""
+    if alertas == 'ninguna':
+        return 'incluir'
+    return 'excluir' if alertas.startswith('diámetro axial <') and ';' not in alertas else 'revisar'
+
+
+def decidir(informe: pd.DataFrame, decisiones: dict[str, dict]) -> pd.DataFrame:
+    """Añade decision_propuesta, decision, decision_origen y motivo."""
+    informe = informe.copy()
+    informe['decision_propuesta'] = [proponer(a) for a in informe['alertas']]
+    d = [decisiones.get(i) for i in informe['id']]
+    informe['decision'] = [x['decision'] if x else p for x, p in zip(d, informe['decision_propuesta'])]
+    informe['decision_origen'] = ['archivo' if x else 'propuesta' for x in d]
+    informe['motivo'] = [x['motivo'] if x and x['motivo'] else (a if a != 'ninguna' else '')
+                         for x, a in zip(d, informe['alertas'])]
+    return informe
+
+
+def flujo(informe: pd.DataFrame) -> pd.DataFrame:
+    """Recuentos agregados del flujo de casos (sin códigos de caso)."""
+    con = informe[informe['alertas'] != 'ninguna']
+    exc = informe[informe['decision'] == 'excluir']
+    ana = informe[informe['decision'] == 'incluir']
+    filas = [('Casos evaluados', len(informe)), ('Con alguna alerta', len(con)), ('Excluidos', len(exc))]
+    motivos = exc['alertas'].map(lambda a: comun.tipos_de_alerta(a) or 'decisión del radiólogo, sin alerta')
+    filas += [(f'· motivo: {m}', int(n)) for m, n in motivos.value_counts().sort_index().items()]
+    filas += [('Pendientes de revisar', int((informe['decision'] == 'revisar').sum())),
+              ('Analizados', len(ana)),
+              ('Con dos observadores analizados', int(ana['dos_observadores'].astype(bool).sum()))]
+    return pd.DataFrame(filas, columns=['concepto', 'casos'])
+
+
 def heterogeneidad(casos: list[Path]) -> pd.DataFrame:
     tecnicas = pd.DataFrame([{**comun.leer_json(c / 'tecnicas.json'), 'id': c.name} for c in casos])
     filas = []
@@ -142,14 +183,20 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
 
     casos = comun.casos(a.entrada / 'casos')
-    informe = pd.DataFrame([qc_caso(c, a.diametro_minimo) for c in casos])
+    informe = decidir(pd.DataFrame([qc_caso(c, a.diametro_minimo) for c in casos]),
+                      comun.leer_decisiones(a.entrada / 'decisiones_casos.csv'))
     a.salida.mkdir(parents=True, exist_ok=True)
     informe.to_csv(a.salida / 'qc_report.csv', index=False, encoding='utf-8')
     heterogeneidad(casos).to_csv(a.salida / 'qc_heterogeneidad_tecnica.csv', index=False, encoding='utf-8')
+    flujo(informe).to_csv(a.salida / 'flujo_casos.csv', index=False, encoding='utf-8')
     con_alerta = informe[informe['alertas'] != 'ninguna']
     print(f'Paso 3: {len(informe)} casos revisados, {len(con_alerta)} con alertas → {a.salida / "qc_report.csv"}')
     for _, f in con_alerta.iterrows():
-        print(f'  {f["id"]}: {f["alertas"]}')
+        print(f'  {f["id"]}: {f["alertas"]} → propuesta «{f["decision_propuesta"]}», decisión «{f["decision"]}»')
+    pendientes = informe[informe['decision'] == 'revisar']
+    if len(pendientes):
+        print(f'AVISO: {len(pendientes)} caso(s) por revisar NO se analizarán hasta que el radiólogo decida '
+              f'(incluir o excluir) en {a.entrada / "decisiones_casos.csv"}.')
     return 0
 
 

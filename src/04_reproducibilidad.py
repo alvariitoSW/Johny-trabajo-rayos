@@ -21,6 +21,8 @@ Columnas añadidas al ICC (etiquetas, nunca filtros; no se quita ninguna fila):
 Aviso: con menos de 15 casos con dos observadores (mínimo orientativo del protocolo §8) se avisa y se anota en el
 resumen; el paso no se detiene.
 
+Solo se analizan los casos con decision == incluir de <salida>/qc_report.csv (paso 3), si existe.
+
 Uso:  python src/04_reproducibilidad.py --entrada data --salida outputs [--binwidth 10]
 """
 from __future__ import annotations
@@ -105,8 +107,10 @@ def main(argv=None) -> int:
     p.add_argument('--binwidth', type=float, default=None)
     a = p.parse_args(argv)
 
+    analizados = comun.ids_analizados(a.salida, 'paso 4')  # solo decision == incluir (None: sin paso 3)
     casos = [c for c in comun.casos(a.entrada / 'casos')
-             if (c / 'mascara_obs1.nii.gz').exists() and (c / 'mascara_obs2.nii.gz').exists()]
+             if (c / 'mascara_obs1.nii.gz').exists() and (c / 'mascara_obs2.nii.gz').exists()
+             and (analizados is None or c.name in analizados)]
     a.salida.mkdir(parents=True, exist_ok=True)
     if not casos:
         print('Paso 4: ningún caso con dos observadores; se omite.')
