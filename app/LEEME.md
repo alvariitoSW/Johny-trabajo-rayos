@@ -26,6 +26,19 @@ escribir órdenes.
 ## Cómo se cierra
 `Ctrl+C` en la ventana negra.
 
-## Por qué no abre desde el móvil
-Escucha solo en `127.0.0.1`, es decir, en el propio ordenador. Es a propósito: así nadie de la red del hospital
-puede entrar, y los datos de pacientes no salen del PC.
+## Cómo meter tus pacientes (paso a paso)
+1. Exporta del PACS la **serie portal** de cada paciente a una carpeta de este PC (p. ej. `D:\estudio\export\p1\`).
+2. Segmenta la **lesión índice** en 3D Slicer siguiendo `docs/segmentacion-guia.md` y guárdala como `.seg.nrrd`.
+3. Abre la app (`lanzar_app.bat`) y, en **Nuevo caso**, escribe el **código de estudio** (`RMH-001`; nunca el nombre ni
+   el NHC), la ruta de la carpeta DICOM y la ruta de la máscara (o las dos de los observadores).
+4. Repite con cada paciente; en **Casos**, decide los que tengan alerta; en **Ejecutar**, lanza el pipeline.
+5. La tabla que une cada código con su paciente la guardas tú, en el hospital, fuera de esta carpeta.
+
+## Usarla desde el móvil: con el acceso remoto del hospital
+La app escucha solo en `127.0.0.1` (el propio ordenador): así nadie de la red puede entrar y los datos de pacientes no
+salen del PC. Para usarla desde el móvil (decisión del usuario del 30/10/2026), entra en este PC con el **acceso
+remoto que dé Informática** (VPN o escritorio remoto) y abre la app ahí, como si estuvieras delante: la página se
+adapta a la pantalla. Borrador de la petición a Informática: `docs/solicitud-acceso-remoto.md`.
+
+No abras la app a la red ni a internet (túneles, redirección de puertos, servicios en la nube): sacaría datos de
+pacientes de los equipos autorizados (protocolo §13).

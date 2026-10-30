@@ -99,8 +99,9 @@ Orden que propongo (de arriba abajo). Todo sale del protocolo v0 (`docs/protocol
 - **Probar la instalación en el PC del hospital** (README, «Instalación»): no se ha probado en Windows.
 - **Las 5 decisiones del Consejo del 30/10** (acta, «Lo que espera al usuario»): la ley, revisar en vez de excluir,
   erosión y ventana con tu tutor, la interfaz y el acceso desde el móvil.
-- **Pedir a Informática** el acceso remoto (VPN o escritorio remoto) al PC del estudio, y consultar al delegado de
-  protección de datos si se puede sacar un resumen agregado al móvil.
+- **Pedir a Informática** el acceso remoto (VPN o escritorio remoto) al PC del estudio: **elegido por el usuario el
+  30/10** para usar la app desde el móvil (borrador: `docs/solicitud-acceso-remoto.md`). Y consultar al delegado de
+  protección de datos el uso desde un móvil personal y el resumen agregado.
 - **Quién es quién**: quién segmenta (observador 1 y 2) y qué radiólogo revisa (§8). Solo los papeles, sin nombres en
   el repositorio si prefieres.
 - **Comité de Ética** (§13): cuándo se presenta; el protocolo v0 aún tiene huecos (B-001).
