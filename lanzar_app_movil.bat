@@ -4,6 +4,8 @@ rem Para dejar entrar solo a tu movil, anade al final:  --permitir IP-DE-TU-MOVI
 rem Con certificado de Informatica:  --certificado cert.pem --clave clave.pem
 rem Se cierra con Ctrl+C en esta ventana. Cierrala cuando termines.
 cd /d "%~dp0"
+rem Python en UTF-8 aunque Windows use otra codificacion (acentos de los textos).
+set PYTHONUTF8=1
 if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat
 python app\servidor.py --datos data --resultados outputs --movil %*
 pause

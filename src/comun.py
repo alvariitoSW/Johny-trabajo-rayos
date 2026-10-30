@@ -114,7 +114,9 @@ def crear_extractor(params: Path, binwidth: float | None = None):
     import radiomics
     from radiomics import featureextractor
     radiomics.setVerbosity(logging.WARNING)
-    extractor = featureextractor.RadiomicsFeatureExtractor(str(params))
+    # Se lee aquí en UTF-8 y se pasa ya leído: si pyRadiomics abre el archivo, en Windows usa la codificación del
+    # sistema (cp1252) y los acentos de los comentarios lo rompen (visto en la prueba de Windows del 30/10/2026).
+    extractor = featureextractor.RadiomicsFeatureExtractor(cargar_yaml(Path(params)))
     if binwidth is not None:
         extractor.settings['binWidth'] = float(binwidth)
     return extractor

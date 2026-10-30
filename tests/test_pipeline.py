@@ -166,3 +166,21 @@ def test_mascara_con_otro_espaciado_no_se_interpola():
     mascara.SetSpacing((1.0, 1.0, 1.0))
     with pytest.raises(ValueError):
         convertir.a_rejilla_de_imagen(mascara, imagen)
+
+
+def test_params_se_lee_bien_con_la_codificacion_de_windows(monkeypatch):
+    """En Windows, un open() sin codificación usa cp1252 y los acentos de params.yaml rompían pyRadiomics (CI del
+    30/10/2026). Se simula aquí: todo open() de texto sin codificación pasa a cp1252."""
+    import builtins
+    abrir = builtins.open
+
+    def abrir_como_windows(archivo, modo='r', *args, **kwargs):
+        if 'b' not in modo and not args and kwargs.get('encoding') is None:
+            kwargs['encoding'] = 'cp1252'
+        return abrir(archivo, modo, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', abrir_como_windows)
+    import pykwalify.core  # pyRadiomics valida params.yaml con pykwalify, que importa su propio open()
+    monkeypatch.setattr(pykwalify.core, 'open', abrir_como_windows)
+    extractor = comun.crear_extractor(comun.CONFIG / 'params.yaml')
+    assert extractor.settings['binWidth'] == 25
